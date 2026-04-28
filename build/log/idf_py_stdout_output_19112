@@ -1,0 +1,133 @@
+ESP-ROM:esp32s3-20210327
+Build:Mar 27 2021
+rst:0x1 (POWERON),boot:0x8 (SPI_FAST_FLASH_BOOT)
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fce2810,len:0x1564
+load:0x403c8700,len:0x4
+load:0x403c8704,len:0xd24
+load:0x403cb700,len:0x2ed4
+entry 0x403c8928
+[0;32mI (27) boot: ESP-IDF v5.4.4 2nd stage bootloader[0m
+[0;32mI (27) boot: compile time Apr 28 2026 18:35:53[0m
+[0;32mI (27) boot: Multicore bootloader[0m
+[0;32mI (27) boot: chip revision: v0.2[0m
+[0;32mI (30) boot: efuse block revision: v1.3[0m
+[0;32mI (33) boot.esp32s3: Boot SPI Speed : 80MHz[0m
+[0;32mI (37) boot.esp32s3: SPI Mode       : DIO[0m
+[0;32mI (41) boot.esp32s3: SPI Flash Size : 8MB[0m
+[0;32mI (45) boot: Enabling RNG early entropy source...[0m
+[0;32mI (49) boot: Partition Table:[0m
+[0;32mI (52) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (58) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (65) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (71) boot:  2 factory          factory app      00 00 00010000 00100000[0m
+[0;32mI (78) boot: End of partition table[0m
+[0;32mI (81) esp_image: segment 0: paddr=00010020 vaddr=3c090020 size=19550h (103760) map[0m
+[0;32mI (107) esp_image: segment 1: paddr=00029578 vaddr=3fc9a100 size=04eech ( 20204) load[0m
+[0;32mI (111) esp_image: segment 2: paddr=0002e46c vaddr=40374000 size=01bach (  7084) load[0m
+[0;32mI (113) esp_image: segment 3: paddr=00030020 vaddr=42000020 size=80a30h (526896) map[0m
+[0;32mI (211) esp_image: segment 4: paddr=000b0a58 vaddr=40375bac size=14494h ( 83092) load[0m
+[0;32mI (229) esp_image: segment 5: paddr=000c4ef4 vaddr=50000000 size=0001ch (    28) load[0m
+[0;32mI (238) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (238) boot: Disabling RNG early entropy source...[0m
+[0;32mI (248) cpu_start: Multicore app[0m
+[0;32mI (257) cpu_start: GPIO 44 and 43 are used as console UART I/O pins[0m
+[0;32mI (258) cpu_start: Pro cpu start user code[0m
+[0;32mI (258) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (259) app_init: Application information:[0m
+[0;32mI (263) app_init: Project name:     csi-monitor[0m
+[0;32mI (267) app_init: App version:      1[0m
+[0;32mI (271) app_init: Compile time:     Apr 28 2026 18:48:59[0m
+[0;32mI (276) app_init: ELF file SHA256:  79ece3875...[0m
+[0;32mI (280) app_init: ESP-IDF:          v5.4.4[0m
+[0;32mI (284) efuse_init: Min chip rev:     v0.0[0m
+[0;32mI (288) efuse_init: Max chip rev:     v0.99 [0m
+[0;32mI (292) efuse_init: Chip rev:         v0.2[0m
+[0;32mI (296) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (302) heap_init: At 3FCA2C70 len 00046AA0 (282 KiB): RAM[0m
+[0;32mI (307) heap_init: At 3FCE9710 len 00005724 (21 KiB): RAM[0m
+[0;32mI (312) heap_init: At 3FCF0000 len 00008000 (32 KiB): DRAM[0m
+[0;32mI (317) heap_init: At 600FE000 len 00001FE8 (7 KiB): RTCRAM[0m
+[0;32mI (324) spi_flash: detected chip: generic[0m
+[0;32mI (326) spi_flash: flash io: dio[0m
+[0;32mI (330) sleep_gpio: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (336) sleep_gpio: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (343) main_task: Started on CPU0[0m
+[0;32mI (383) main_task: Calling app_main()[0m
+[0;32mI (403) pp: pp rom version: e7ae62f[0m
+[0;32mI (403) net80211: net80211 rom version: e7ae62f[0m
+[0;32mI (413) wifi:wifi driver task: 3fcace8c, prio:23, stack:6656, core=0[0m
+[0;32mI (423) wifi:wifi firmware version: 8896d66[0m
+[0;32mI (423) wifi:wifi certification version: v7.0[0m
+[0;32mI (423) wifi:config NVS flash: enabled[0m
+[0;32mI (423) wifi:config nano formatting: disabled[0m
+[0;32mI (423) wifi:Init data frame dynamic rx buffer num: 32[0m
+[0;32mI (433) wifi:Init static rx mgmt buffer num: 5[0m
+[0;32mI (433) wifi:Init management short buffer num: 32[0m
+[0;32mI (433) wifi:Init dynamic tx buffer num: 32[0m
+[0;32mI (443) wifi:Init static tx FG buffer num: 2[0m
+[0;32mI (443) wifi:Init static rx buffer size: 2212[0m
+[0;32mI (453) wifi:Init static rx buffer num: 10[0m
+[0;32mI (453) wifi:Init dynamic rx buffer num: 32[0m
+[0;32mI (453) wifi_init: rx ba win: 6[0m
+[0;32mI (463) wifi_init: accept mbox: 6[0m
+[0;32mI (463) wifi_init: tcpip mbox: 32[0m
+[0;32mI (463) wifi_init: udp mbox: 6[0m
+[0;32mI (473) wifi_init: tcp mbox: 6[0m
+[0;32mI (473) wifi_init: tcp tx win: 5760[0m
+[0;32mI (473) wifi_init: tcp rx win: 5760[0m
+[0;32mI (473) wifi_init: tcp mss: 1440[0m
+[0;32mI (483) wifi_init: WiFi IRAM OP enabled[0m
+[0;32mI (483) wifi_init: WiFi RX IRAM OP enabled[0m
+[0;33mW (493) wifi:Password length matches WPA2 standards, authmode threshold changes from OPEN to WPA2[0m
+[0;32mI (493) phy_init: phy_version 711,97bcf0a2,Aug 25 2025,19:04:10[0m
+[0;32mI (543) wifi:mode : sta (b4:3a:45:3f:6d:74)[0m
+[0;32mI (543) wifi:enable tsf[0m
+[0;32mI (543) CSI-MONITOR: Connecting to raowaifi...[0m
+[0;32mI (553) wifi:new:<5,0>, old:<1,0>, ap:<255,255>, sta:<5,0>, prof:1, snd_ch_cfg:0x0[0m
+[0;32mI (553) wifi:state: init -> auth (0xb0)[0m
+[0;32mI (563) wifi:state: auth -> assoc (0x0)[0m
+[0;32mI (573) wifi:state: assoc -> run (0x10)[0m
+[0;32mI (583) wifi:state: run -> init (0x2c0)[0m
+[0;32mI (593) wifi:new:<5,0>, old:<5,0>, ap:<255,255>, sta:<5,0>, prof:1, snd_ch_cfg:0x0[0m
+[0;32mI (593) CSI-MONITOR: Reconnecting...[0m
+[0;32mI (3003) CSI-MONITOR: Reconnecting...[0m
+[0;32mI (3013) wifi:new:<5,0>, old:<5,0>, ap:<255,255>, sta:<5,0>, prof:1, snd_ch_cfg:0x0[0m
+[0;32mI (3013) wifi:state: init -> auth (0xb0)[0m
+[0;32mI (3023) wifi:state: auth -> assoc (0x0)[0m
+[0;32mI (3033) wifi:state: assoc -> run (0x10)[0m
+[0;32mI (3053) wifi:connected with raowaifi, aid = 5, channel 5, BW20, bssid = 4a:fd:0e:51:a9:8c[0m
+[0;32mI (3053) wifi:security: WPA2-PSK, phy: bgn, rssi: -56, cipher(pairwise:0x3, group:0x3), pmf:0[0m
+[0;32mI (3063) wifi:pm start, type: 1[0m
+
+[0;32mI (3063) wifi:dp: 1, bi: 102400, li: 3, scale listen interval from 307200 us to 307200 us[0m
+[0;32mI (3073) wifi:set rx beacon pti, rx_bcn_pti: 0, bcn_timeout: 25000, mt_pti: 0, mt_time: 10000[0m
+[0;32mI (3153) wifi:dp: 2, bi: 102400, li: 4, scale listen interval from 307200 us to 409600 us[0m
+[0;32mI (3153) wifi:AP's beacon interval = 102400 us, DTIM period = 2[0m
+[0;32mI (4103) esp_netif_handlers: sta ip: 10.71.92.83, mask: 255.255.255.0, gw: 10.71.92.46[0m
+[0;32mI (4103) CSI-MONITOR: Connected! IP: 10.71.92.83[0m
+[0;32mI (4103) CSI-MONITOR: CSI enabled[0m
+[0;32mI (4103) CSI-MONITOR: CSI pipeline running...[0m
+[0;32mI (4603) CSI-MONITOR: Self-ping task started at ~100Hz[0m
+CSI[10][64 subs]:   0  23  23  22  22  21  21  20  20  19 
+[0;32mI (12623) wifi:<ba-add>idx:0 (ifx:0, 4a:fd:0e:51:a9:8c), tid:6, ssn:16, winSize:64[0m
+CSI[20][64 subs]:   0  16  17  16  16  16  16  16  15  15 
+CSI[30][64 subs]:   0  19  19  19  19  18  17  18  17  17 
+CSI[40][64 subs]:   0  20  20  20  18  18  18  17  17  16 
+CSI[50][64 subs]:   0  21  21  21  20  20  19  20  18  18 
+CSI[60][64 subs]:   0  21  20  22  20  20  20  18  19  18 
+CSI[70][64 subs]:   0  22  22  22  22  21  21  20  21  21 
+CSI[80][64 subs]:   0  21  21  22  21  21  21  21  20  22 
+CSI[90][64 subs]:   0  20  20  20  20  20  20  19  19  19 
+CSI[100][64 subs]:   0  19  19  19  19  17  17  17  16  15 
+CSI[110][64 subs]:   0  19  19  18  17  16  16  15  14  13 
+CSI[120][64 subs]:   0  16  17  16  15  14  13  13  13  12 
+CSI[130][64 subs]:   0  23  22  22  21  21  21  20  20  20 
+CSI[140][64 subs]:   0  26  26  24  23  23  24  22  22  21 
+CSI[150][64 subs]:   0  20  20  21  20  19  19  18  18  19 
+CSI[160][64 subs]:   0  22  21  21  20  20  19  19  18  17 
+CSI[170][64 subs]:   0  19  19  18  17  17  17  16  16  16 
+CSI[180][64 subs]:   0  16  15  16  14  14  14  13  13  13 
+CSI[190][64 subs]:   0  22  21  20  20  18  17  17  16  15 
+CSI[200][64 subs]:   0  20  20  20  20  18  18  20  17  18 

@@ -1,5 +1,4 @@
 #include <string.h>
-#include <math.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
@@ -10,89 +9,66 @@
 #include "nvs_flash.h"
 #include "lwip/ip4_addr.h"
 #include "lwip/sockets.h"
+#include "csi_handler.h"
+#include "dsp_processor.h"
 
-#define WIFI_SSID      "raowaifi"
-#define WIFI_PASSWORD  "netbeka123"
-#define TAG            "CSI-MONITOR"
-#define PING_PORT      3333
-#define PING_INTERVAL_MS 10   // 10ms = ~100Hz
+#define WIFI_SSID        "raowaifi"
+#define WIFI_PASSWORD    "netbeka123"
+#define TAG              "MAIN"
+#define PING_INTERVAL_MS 10
 
 static EventGroupHandle_t wifi_event_group;
 #define WIFI_CONNECTED_BIT BIT0
 
-// ─── CSI CALLBACK ───────────────────────────────────────────────
-// RUNS ON CORE 0 — fast only, no heavy work
-static uint32_t csi_frame_count = 0;
-
-void csi_callback(void *ctx, wifi_csi_info_t *info)
+// ─── DSP TASK ────────────────────────────────────────────────────
+// Runs on Core 1 — reads ring buffer, processes signal
+void dsp_task(void *pvParameters)
 {
-    if (!info || !info->buf) return;
+    dsp_processor_init();
+    csi_frame_t frame;
+    float       cleaned[TOP_K_SUBCARRIERS];
+    int         top_k[TOP_K_SUBCARRIERS];
+    uint32_t    frame_count = 0;
 
-    int8_t *buf = info->buf;
-    int num_subcarriers = info->len / 2;
-    csi_frame_count++;
+    while (1) {
+        if (csi_handler_read(&frame)) {
+            dsp_processor_push(&frame);
+            frame_count++;
 
-    // Print every 10th frame to avoid flooding serial
-    if (csi_frame_count % 10 != 0) return;
-
-    printf("CSI[%d][%lu subs]: ", (int)csi_frame_count, (unsigned long)num_subcarriers);
-    for (int i = 0; i < 10 && i < num_subcarriers; i++) {
-        int8_t I = buf[i * 2];
-        int8_t Q = buf[i * 2 + 1];
-        int amplitude = abs(I) + abs(Q);
-        printf("%3d ", amplitude);
+            // Print cleaned signal every 50 frames
+            if (frame_count % 50 == 0) {
+                dsp_processor_get_signal(cleaned, top_k);
+                printf("CLEAN[%lu] subs:%d,%d,%d vals:%.1f %.1f %.1f\n",
+                    (unsigned long)frame_count,
+                    top_k[0], top_k[1], top_k[2],
+                    cleaned[0], cleaned[1], cleaned[2]);
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(1)); // yield — feeds watchdog
     }
-    printf("\n");
 }
 
-// ─── CSI INIT ───────────────────────────────────────────────────
-void csi_init(void)
-{
-    wifi_csi_config_t csi_config = {
-        .lltf_en           = true,
-        .htltf_en          = false,
-        .stbc_htltf2_en    = false,
-        .ltf_merge_en      = true,
-        .channel_filter_en = false,
-        .manu_scale        = false,
-    };
-    ESP_ERROR_CHECK(esp_wifi_set_csi_config(&csi_config));
-    ESP_ERROR_CHECK(esp_wifi_set_csi_rx_cb(csi_callback, NULL));
-    ESP_ERROR_CHECK(esp_wifi_set_csi(true));
-    ESP_LOGI(TAG, "CSI enabled");
-}
-
-// ─── SELF-PING TASK ─────────────────────────────────────────────
-// Runs on Core 1 — sends UDP packets to itself every 10ms
-// This forces consistent CSI frame generation ~100Hz
+// ─── SELF-PING TASK ──────────────────────────────────────────────
 void ping_task(void *pvParameters)
 {
-    // Wait for WiFi to be ready
     xEventGroupWaitBits(wifi_event_group, WIFI_CONNECTED_BIT,
                         pdFALSE, pdTRUE, portMAX_DELAY);
-
-    vTaskDelay(pdMS_TO_TICKS(500)); // small settle delay
+    vTaskDelay(pdMS_TO_TICKS(500));
 
     int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (sock < 0) {
-        ESP_LOGE(TAG, "Failed to create ping socket");
-        vTaskDelete(NULL);
-        return;
-    }
+    if (sock < 0) { vTaskDelete(NULL); return; }
 
-    // Send to broadcast on hotspot subnet
     struct sockaddr_in dest;
     memset(&dest, 0, sizeof(dest));
     dest.sin_family      = AF_INET;
-    dest.sin_port        = htons(PING_PORT);
-    dest.sin_addr.s_addr = inet_addr("10.71.92.255"); // hotspot broadcast
+    dest.sin_port        = htons(3333);
+    dest.sin_addr.s_addr = inet_addr("10.71.92.46"); // gateway
 
-    uint8_t ping_buf[32] = {0xAB}; // dummy payload
-
-    ESP_LOGI(TAG, "Self-ping task started at ~100Hz");
+    uint8_t buf[32] = {0xAB};
+    ESP_LOGI(TAG, "Ping task running");
 
     while (1) {
-        sendto(sock, ping_buf, sizeof(ping_buf), 0,
+        sendto(sock, buf, sizeof(buf), 0,
                (struct sockaddr *)&dest, sizeof(dest));
         vTaskDelay(pdMS_TO_TICKS(PING_INTERVAL_MS));
     }
@@ -150,15 +126,13 @@ void app_main(void)
 {
     ESP_ERROR_CHECK(nvs_flash_init());
     wifi_init();
-    csi_init();
+    csi_handler_init();
 
-    // Pin ping task to Core 1, DSP will also run on Core 1 later
     xTaskCreatePinnedToCore(ping_task, "ping_task", 4096,
                             NULL, 5, NULL, 1);
+    xTaskCreatePinnedToCore(dsp_task, "dsp_task", 8192,
+                            NULL, 4, NULL, 1);
 
-    ESP_LOGI(TAG, "CSI pipeline running...");
-
-    while (1) {
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
+    ESP_LOGI(TAG, "All tasks running");
+    while (1) { vTaskDelay(pdMS_TO_TICKS(1000)); }
 }
