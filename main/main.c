@@ -35,7 +35,7 @@ void dsp_task(void *pvParameters)
             dsp_processor_push(&frame);
             frame_count++;
 
-            // Print cleaned signal every 50 frames
+            // Only run heavy DSP every 50 frames
             if (frame_count % 50 == 0) {
                 dsp_processor_get_signal(cleaned, top_k);
                 printf("CLEAN[%lu] subs:%d,%d,%d vals:%.1f %.1f %.1f\n",
@@ -44,7 +44,8 @@ void dsp_task(void *pvParameters)
                     cleaned[0], cleaned[1], cleaned[2]);
             }
         }
-        vTaskDelay(pdMS_TO_TICKS(1)); // yield — feeds watchdog
+        // Always yield — non negotiable
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
 
