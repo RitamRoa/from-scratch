@@ -144,3 +144,39 @@ void dsp_processor_get_signal(float *out, int *top_k_indices)
         out[k] = hampel_filter(window, HISTORY_LEN);
     }
 }
+presence_state_t dsp_get_presence(const float *cleaned_vals)
+{
+    static presence_state_t current = PRESENCE_EMPTY;
+    static int confirm_count = 0;
+
+    // Use only first 3 locked subcarriers for presence
+    // They are highest variance = most reliable
+    float max_val = 0.0f;
+    float avg_val = 0.0f;
+    for (int i = 0; i < 3; i++) {
+        if (cleaned_vals[i] > max_val) max_val = cleaned_vals[i];
+        avg_val += cleaned_vals[i];
+    }
+    avg_val /= 3.0f;
+
+    presence_state_t detected;
+    if (avg_val < 8.0f) {
+        detected = PRESENCE_EMPTY;
+    } else if (avg_val < 13.0f) {
+        detected = PRESENCE_SINGLE;
+    } else {
+        detected = PRESENCE_MULTI;
+    }
+
+    if (detected == current) {
+        confirm_count = 0;
+    } else {
+        confirm_count++;
+        if (confirm_count >= PRESENCE_CONFIRM) {
+            current = detected;
+            confirm_count = 0;
+        }
+    }
+
+    return current;
+}

@@ -1,7 +1,7 @@
 {
     "version":            "1.2",
     "project_name":       "csi-monitor",
-    "project_version":    "6ed4a44-dirty",
+    "project_version":    "c2b0e8d-dirty",
     "project_path":       "C:/Users/Ritham/Desktop/from-scratch/csi-monitor",
     "idf_path":           "C:/Espressif/frameworks/esp-idf-v5.4.4",
     "build_dir":          "C:/Users/Ritham/Desktop/from-scratch/csi-monitor/build",

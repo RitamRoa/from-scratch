@@ -36,17 +36,20 @@ void dsp_task(void *pvParameters)
             frame_count++;
 
             // Only run heavy DSP every 50 frames
-            if (frame_count % 10 == 0) {
-                dsp_processor_get_signal(cleaned, top_k);
-                printf("CLEAN[%lu] subs:%d,%d,%d vals:%.1f %.1f %.1f\n",
-                    (unsigned long)frame_count,
-                    top_k[0], top_k[1], top_k[2],
-                    cleaned[0], cleaned[1], cleaned[2]);
-            }
+             if (frame_count % 10 == 0) {
+             dsp_processor_get_signal(cleaned, top_k);
+             presence_state_t presence = dsp_get_presence(cleaned);
+
+             const char *presence_str[] = {"EMPTY", "SINGLE", "MULTI"};
+             printf("PRESENCE:%s vals:%.1f %.1f %.1f\n",
+             presence_str[presence],
+             cleaned[0], cleaned[1], cleaned[2]);
+}
         }
         // Always yield — non negotiable
         vTaskDelay(pdMS_TO_TICKS(10));
     }
+   
 }
 
 // ─── SELF-PING TASK ──────────────────────────────────────────────
@@ -136,13 +139,4 @@ void app_main(void)
 
     ESP_LOGI(TAG, "All tasks running");
     while (1) { vTaskDelay(pdMS_TO_TICKS(1000)); }
-}
-if (frame_count % 10 == 0) {
-    dsp_processor_get_signal(cleaned, top_k);
-    presence_state_t presence = dsp_get_presence(cleaned);
-
-    const char *presence_str[] = {"EMPTY", "SINGLE", "MULTI"};
-    printf("PRESENCE:%s vals:%.1f %.1f %.1f\n",
-        presence_str[presence],
-        cleaned[0], cleaned[1], cleaned[2]);
 }
