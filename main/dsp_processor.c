@@ -162,7 +162,7 @@ presence_state_t dsp_get_presence(const float *cleaned_vals)
     presence_state_t detected;
     if (avg_val < 8.0f) {
         detected = PRESENCE_EMPTY;
-    } else if (avg_val < 13.0f) {
+    } else if (avg_val < 15.5f) {
         detected = PRESENCE_SINGLE;
     } else {
         detected = PRESENCE_MULTI;
