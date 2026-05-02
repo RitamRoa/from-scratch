@@ -1,1 +1,0 @@
-ninja: error: 'C:/Users/Ritham/Desktop/from-scratch/csi-monitor/main/csi-monitor.c', needed by 'esp-idf/main/CMakeFiles/__idf_main.dir/csi-monitor.c.obj', missing and no known rule to make it

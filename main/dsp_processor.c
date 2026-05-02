@@ -97,43 +97,46 @@ void dsp_processor_push(const csi_frame_t *frame)
     if (hist_count < HISTORY_LEN) hist_count++;
 }
 
+static int locked_indices[TOP_K_SUBCARRIERS] = {0};
+static int indices_locked = 0;
+
 void dsp_processor_get_signal(float *out, int *top_k_indices)
 {
     if (hist_count < HISTORY_LEN) {
-        // Not enough data yet
         for (int i = 0; i < TOP_K_SUBCARRIERS; i++) {
             out[i] = 0.0f;
-            top_k_indices[i] = i + 1; // skip subcarrier 0
+            top_k_indices[i] = i + 1;
         }
         return;
     }
 
-    // Find top-K subcarriers by variance (skip sub 0, always null)
-    float variances[NUM_SUBCARRIERS];
-    for (int s = 0; s < NUM_SUBCARRIERS; s++) {
-        variances[s] = (s == 0) ? 0.0f : subcarrier_variance(s);
-    }
-
-    // Simple top-K selection
-    int selected[TOP_K_SUBCARRIERS];
-    float used[NUM_SUBCARRIERS];
-    memcpy(used, variances, sizeof(used));
-
-    for (int k = 0; k < TOP_K_SUBCARRIERS; k++) {
-        int best = 0;
-        for (int s = 1; s < NUM_SUBCARRIERS; s++) {
-            if (used[s] > used[best]) best = s;
+    // Lock subcarrier selection after first stable reading
+    if (!indices_locked) {
+        float variances[NUM_SUBCARRIERS];
+        for (int s = 0; s < NUM_SUBCARRIERS; s++) {
+            variances[s] = (s == 0) ? 0.0f : subcarrier_variance(s);
         }
-        selected[k] = best;
-        used[best] = -1.0f; // mark as used
-        if (top_k_indices) top_k_indices[k] = best;
+        float used[NUM_SUBCARRIERS];
+        memcpy(used, variances, sizeof(used));
+        for (int k = 0; k < TOP_K_SUBCARRIERS; k++) {
+            int best = 0;
+            for (int s = 1; s < NUM_SUBCARRIERS; s++) {
+                if (used[s] > used[best]) best = s;
+            }
+            locked_indices[k] = best;
+            used[best] = -1.0f;
+        }
+        indices_locked = 1;
+        ESP_LOGI("DSP", "Subcarriers locked: %d %d %d %d %d",
+            locked_indices[0], locked_indices[1], locked_indices[2],
+            locked_indices[3], locked_indices[4]);
     }
 
-    // Apply Hampel filter to each selected subcarrier
+    // Use locked subcarriers from here on
     float window[HISTORY_LEN];
     for (int k = 0; k < TOP_K_SUBCARRIERS; k++) {
-        int s = selected[k];
-        // Build window for this subcarrier
+        int s = locked_indices[k];
+        if (top_k_indices) top_k_indices[k] = s;
         for (int i = 0; i < HISTORY_LEN; i++) {
             int idx = (hist_idx - HISTORY_LEN + i + HISTORY_LEN) % HISTORY_LEN;
             window[i] = history[s][idx];

@@ -1,7 +1,7 @@
 {
     "version":            "1.2",
     "project_name":       "csi-monitor",
-    "project_version":    "1",
+    "project_version":    "6ed4a44-dirty",
     "project_path":       "C:/Users/Ritham/Desktop/from-scratch/csi-monitor",
     "idf_path":           "C:/Espressif/frameworks/esp-idf-v5.4.4",
     "build_dir":          "C:/Users/Ritham/Desktop/from-scratch/csi-monitor/build",
@@ -1210,7 +1210,7 @@
             "managed_reqs": [],
             "managed_priv_reqs": [],
             "file": "C:/Users/Ritham/Desktop/from-scratch/csi-monitor/build/esp-idf/main/libmain.a",
-            "sources": [ "C:/Users/Ritham/Desktop/from-scratch/csi-monitor/main/csi-monitor.c" ],
+            "sources": [ "C:/Users/Ritham/Desktop/from-scratch/csi-monitor/main/main.c", "C:/Users/Ritham/Desktop/from-scratch/csi-monitor/main/csi_handler.c", "C:/Users/Ritham/Desktop/from-scratch/csi-monitor/main/dsp_processor.c" ],
             "include_dirs": [ "." ]
         },
         "mbedtls": {
