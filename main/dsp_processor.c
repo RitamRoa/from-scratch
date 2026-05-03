@@ -10,6 +10,11 @@
 static float history[NUM_SUBCARRIERS][HISTORY_LEN];
 static int   hist_idx = 0;
 static int   hist_count = 0;
+// Add these static vars at top of file
+static float baseline_avg = 0.0f;
+static int   baseline_calibrated = 0;
+static float baseline_samples[20];
+static int   baseline_sample_count = 0;
 
 // ─── HAMPEL FILTER ───────────────────────────────────────────────
 // Removes outliers from a signal window
@@ -149,20 +154,33 @@ presence_state_t dsp_get_presence(const float *cleaned_vals)
     static presence_state_t current = PRESENCE_EMPTY;
     static int confirm_count = 0;
 
-    // Use only first 3 locked subcarriers for presence
-    // They are highest variance = most reliable
-    float max_val = 0.0f;
     float avg_val = 0.0f;
-    for (int i = 0; i < 3; i++) {
-        if (cleaned_vals[i] > max_val) max_val = cleaned_vals[i];
-        avg_val += cleaned_vals[i];
-    }
+    for (int i = 0; i < 3; i++) avg_val += cleaned_vals[i];
     avg_val /= 3.0f;
 
+    // Auto-calibrate baseline during first 20 readings after lock
+    if (!baseline_calibrated) {
+        if (avg_val > 0.1f) {
+            baseline_samples[baseline_sample_count++] = avg_val;
+            if (baseline_sample_count >= 20) {
+                float sum = 0.0f;
+                for (int i = 0; i < 20; i++) sum += baseline_samples[i];
+                baseline_avg = sum / 20.0f;
+                baseline_calibrated = 1;
+                ESP_LOGI("DSP", "Baseline calibrated: %.1f", baseline_avg);
+            }
+        }
+        return PRESENCE_EMPTY;
+    }
+
+    // Dynamic thresholds based on baseline
+    float single_thresh = baseline_avg + 1.5f;
+    float multi_thresh  = baseline_avg + 5.0f;
+
     presence_state_t detected;
-    if (avg_val < 8.0f) {
+    if (avg_val < single_thresh) {
         detected = PRESENCE_EMPTY;
-    } else if (avg_val < 15.5f) {
+    } else if (avg_val < multi_thresh) {
         detected = PRESENCE_SINGLE;
     } else {
         detected = PRESENCE_MULTI;

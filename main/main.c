@@ -12,6 +12,7 @@
 #include "csi_handler.h"
 #include "dsp_processor.h"
 
+
 #define WIFI_SSID        "raowaifi"
 #define WIFI_PASSWORD    "netbeka123"
 #define TAG              "MAIN"
@@ -25,31 +26,26 @@ static EventGroupHandle_t wifi_event_group;
 void dsp_task(void *pvParameters)
 {
     dsp_processor_init();
-    csi_frame_t frame;
-    float       cleaned[TOP_K_SUBCARRIERS];
-    int         top_k[TOP_K_SUBCARRIERS];
-    uint32_t    frame_count = 0;
+    csi_frame_t  frame;
+    uint32_t     frame_count = 0;
 
     while (1) {
         if (csi_handler_read(&frame)) {
             dsp_processor_push(&frame);
             frame_count++;
 
-            // Only run heavy DSP every 50 frames
-             if (frame_count % 10 == 0) {
-             dsp_processor_get_signal(cleaned, top_k);
-             presence_state_t presence = dsp_get_presence(cleaned);
-
-             const char *presence_str[] = {"EMPTY", "SINGLE", "MULTI"};
-             printf("PRESENCE:%s vals:%.1f %.1f %.1f\n",
-             presence_str[presence],
-             cleaned[0], cleaned[1], cleaned[2]);
-}
+            if (frame_count % 10 == 0) {
+                csi_output_t out = dsp_processor_get_output();
+                const char *p[] = {"EMPTY", "SINGLE", "MULTI"};
+                printf("PRESENCE:%s PEOPLE:%d MOTION:%.2f BR:%d bpm\n",
+                    p[out.presence],
+                    out.person_count,
+                    out.motion_score,
+                    out.br_bpm);
+            }
         }
-        // Always yield — non negotiable
         vTaskDelay(pdMS_TO_TICKS(10));
     }
-   
 }
 
 // ─── SELF-PING TASK ──────────────────────────────────────────────
