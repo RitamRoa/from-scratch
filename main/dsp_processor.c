@@ -4,197 +4,283 @@
 #include <math.h>
 #include <stdlib.h>
 
-#define TAG         "DSP"
-#define HISTORY_LEN 64  // frames of history per subcarrier
+#define TAG "DSP"
 
-static float history[NUM_SUBCARRIERS][HISTORY_LEN];
-static int   hist_idx = 0;
-static int   hist_count = 0;
-// Add these static vars at top of file
-static float baseline_avg = 0.0f;
-static int   baseline_calibrated = 0;
-static float baseline_samples[20];
-static int   baseline_sample_count = 0;
+// ─── WELFORD STATE PER SUBCARRIER ────────────────────────────────
+static welford_t wf[NUM_SUBCARRIERS];
+static uint32_t  total_frames = 0;
 
-// ─── HAMPEL FILTER ───────────────────────────────────────────────
-// Removes outliers from a signal window
-// Returns cleaned value for center of window
-static float hampel_filter(float *window, int len)
+// ─── SIGNAL BUFFER FOR BR FFT ────────────────────────────────────
+#define BR_BUF_LEN 512
+static float     br_buf[BR_BUF_LEN];  // variance signal over time
+static int        br_buf_idx = 0;
+static int        br_buf_full = 0;
+
+// ─── LOCKED SUBCARRIERS ──────────────────────────────────────────
+#define TOP_K 8
+static int  top_k[TOP_K];
+static int  top_k_locked = 0;
+
+// ─── WELFORD UPDATE ──────────────────────────────────────────────
+static void welford_update(welford_t *w, float x)
 {
-    int center = len / 2;
+    w->count++;
+    float delta  = x - w->mean;
+    w->mean     += delta / (float)w->count;
+    float delta2 = x - w->mean;
+    w->M2       += delta * delta2;
+    if (w->count > 1)
+        w->variance = w->M2 / (float)(w->count - 1);
+}
 
-    // Calculate median
-    float sorted[HISTORY_LEN];
-    memcpy(sorted, window, len * sizeof(float));
+// ─── HAMPEL ON SMALL WINDOW ──────────────────────────────────────
+// Applied to BR buffer to remove motion spikes before FFT
+static float hampel_point(float *buf, int len, int center)
+{
+    float tmp[32];
+    int   half = 15;
+    int   start = center - half;
+    int   end   = center + half;
+    if (start < 0) start = 0;
+    if (end >= len) end = len - 1;
+    int   wlen = end - start + 1;
+    if (wlen <= 0) return buf[center];
 
-    // Simple insertion sort (small window, fine for embedded)
-    for (int i = 1; i < len; i++) {
-        float key = sorted[i];
+    for (int i = 0; i < wlen; i++) tmp[i] = buf[start + i];
+
+    // insertion sort
+    for (int i = 1; i < wlen; i++) {
+        float key = tmp[i];
         int j = i - 1;
-        while (j >= 0 && sorted[j] > key) {
-            sorted[j+1] = sorted[j];
-            j--;
-        }
-        sorted[j+1] = key;
+        while (j >= 0 && tmp[j] > key) { tmp[j+1] = tmp[j]; j--; }
+        tmp[j+1] = key;
     }
-    float median = sorted[len / 2];
+    float median = tmp[wlen / 2];
 
-    // Calculate MAD (Median Absolute Difference)
-    float diffs[HISTORY_LEN];
-    for (int i = 0; i < len; i++) {
-        diffs[i] = fabsf(window[i] - median);
-    }
-    // Sort diffs for median
-    for (int i = 1; i < len; i++) {
+    float diffs[32];
+    for (int i = 0; i < wlen; i++)
+        diffs[i] = fabsf(buf[start + i] - median);
+    for (int i = 1; i < wlen; i++) {
         float key = diffs[i];
         int j = i - 1;
-        while (j >= 0 && diffs[j] > key) {
-            diffs[j+1] = diffs[j];
-            j--;
-        }
+        while (j >= 0 && diffs[j] > key) { diffs[j+1] = diffs[j]; j--; }
         diffs[j+1] = key;
     }
-    float mad = 1.4826f * diffs[len / 2]; // consistent with std dev
+    float mad = 1.4826f * diffs[wlen / 2];
 
-    // If center value is outlier, replace with median
-    if (mad > 0 && fabsf(window[center] - median) > HAMPEL_THRESH * mad) {
-        return median; // outlier replaced
-    }
-    return window[center]; // not an outlier
+    if (mad > 0 && fabsf(buf[center] - median) > HAMPEL_THRESH * mad)
+        return median;
+    return buf[center];
 }
 
-// ─── VARIANCE HELPER ─────────────────────────────────────────────
-static float subcarrier_variance(int sub_idx)
+// ─── SIMPLE FFT MAGNITUDE ────────────────────────────────────────
+// Returns dominant frequency in Hz given sample rate
+// Uses Goertzel-style peak search — no full FFT needed for BR
+#define SAMPLE_RATE_HZ  10.0f  // BR buffer updated at ~10Hz
+
+static float find_peak_hz(float *buf, int len, float freq_min, float freq_max)
 {
-    if (hist_count < 2) return 0.0f;
-    int len = hist_count < HISTORY_LEN ? hist_count : HISTORY_LEN;
+    float best_power = 0.0f;
+    float best_freq  = 0.0f;
+    float freq_res   = SAMPLE_RATE_HZ / (float)len;
 
-    float mean = 0.0f;
-    for (int i = 0; i < len; i++) {
-        mean += history[sub_idx][i];
-    }
-    mean /= len;
+    // Search only in physiological range
+    int bin_min = (int)(freq_min / freq_res);
+    int bin_max = (int)(freq_max / freq_res);
+    if (bin_min < 1) bin_min = 1;
+    if (bin_max >= len / 2) bin_max = len / 2 - 1;
 
-    float var = 0.0f;
-    for (int i = 0; i < len; i++) {
-        float d = history[sub_idx][i] - mean;
-        var += d * d;
+    for (int k = bin_min; k <= bin_max; k++) {
+        // DFT for single bin k
+        float real = 0.0f, imag = 0.0f;
+        float omega = 2.0f * 3.14159f * k / (float)len;
+        for (int n = 0; n < len; n++) {
+            real += buf[n] * cosf(omega * n);
+            imag -= buf[n] * sinf(omega * n);
+        }
+        float power = real*real + imag*imag;
+        if (power > best_power) {
+            best_power = power;
+            best_freq  = k * freq_res;
+        }
     }
-    return var / len;
+    return best_freq;
 }
 
-// ─── PUBLIC API ──────────────────────────────────────────────────
-void dsp_processor_init(void)
+// ─── SELECT TOP-K SUBCARRIERS ────────────────────────────────────
+static void select_top_k(void)
 {
-    memset(history, 0, sizeof(history));
-    hist_idx   = 0;
-    hist_count = 0;
-    ESP_LOGI(TAG, "DSP processor ready");
-}
-
-void dsp_processor_push(const csi_frame_t *frame)
-{
-    // Store raw amplitudes into history ring
+    float vars[NUM_SUBCARRIERS];
     for (int s = 0; s < NUM_SUBCARRIERS; s++) {
-        history[s][hist_idx] = frame->amp[s];
+        // Skip edge subcarriers — noise dominated
+        if (s < 6 || s > 57) {
+            vars[s] = 0.0f;
+        } else {
+            vars[s] = wf[s].variance;
+        }
     }
-    hist_idx = (hist_idx + 1) % HISTORY_LEN;
-    if (hist_count < HISTORY_LEN) hist_count++;
+
+    float used[NUM_SUBCARRIERS];
+    memcpy(used, vars, sizeof(vars));
+
+    for (int k = 0; k < TOP_K; k++) {
+        int best = 6; // start from non-edge
+        for (int s = 7; s < 58; s++) {
+            if (used[s] > used[best]) best = s;
+        }
+        top_k[k] = best;
+        used[best] = -1.0f;
+    }
+
+    top_k_locked = 1;
+    ESP_LOGI(TAG, "Top-K locked: %d %d %d %d %d %d %d %d",
+        top_k[0], top_k[1], top_k[2], top_k[3],
+        top_k[4], top_k[5], top_k[6], top_k[7]);
 }
 
-static int locked_indices[TOP_K_SUBCARRIERS] = {0};
-static int indices_locked = 0;
-
-void dsp_processor_get_signal(float *out, int *top_k_indices)
+// ─── PRESENCE DETECTION ──────────────────────────────────────────
+// Based on variance score not absolute amplitude
+static presence_state_t detect_presence(float variance_score,
+                                         float *motion_score_out)
 {
-    if (hist_count < HISTORY_LEN) {
-        for (int i = 0; i < TOP_K_SUBCARRIERS; i++) {
-            out[i] = 0.0f;
-            top_k_indices[i] = i + 1;
+    static presence_state_t current   = PRESENCE_EMPTY;
+    static int               confirm   = 0;
+    static float             baseline  = -1.0f;
+    static int               baseline_count = 0;
+
+    // Build baseline from first 50 frames after warmup
+    if (baseline < 0.0f) {
+        baseline_count++;
+        if (baseline_count == 1) baseline = variance_score;
+        else baseline = baseline * 0.9f + variance_score * 0.1f;
+
+        if (baseline_count < 50) {
+            *motion_score_out = 0.0f;
+            return PRESENCE_EMPTY;
         }
-        return;
+        ESP_LOGI(TAG, "Baseline variance: %.3f", baseline);
     }
 
-    // Lock subcarrier selection after first stable reading
-    if (!indices_locked) {
-        float variances[NUM_SUBCARRIERS];
-        for (int s = 0; s < NUM_SUBCARRIERS; s++) {
-            variances[s] = (s == 0) ? 0.0f : subcarrier_variance(s);
-        }
-        float used[NUM_SUBCARRIERS];
-        memcpy(used, variances, sizeof(used));
-        for (int k = 0; k < TOP_K_SUBCARRIERS; k++) {
-            int best = 0;
-            for (int s = 1; s < NUM_SUBCARRIERS; s++) {
-                if (used[s] > used[best]) best = s;
-            }
-            locked_indices[k] = best;
-            used[best] = -1.0f;
-        }
-        indices_locked = 1;
-        ESP_LOGI("DSP", "Subcarriers locked: %d %d %d %d %d",
-            locked_indices[0], locked_indices[1], locked_indices[2],
-            locked_indices[3], locked_indices[4]);
-    }
-
-    // Use locked subcarriers from here on
-    float window[HISTORY_LEN];
-    for (int k = 0; k < TOP_K_SUBCARRIERS; k++) {
-        int s = locked_indices[k];
-        if (top_k_indices) top_k_indices[k] = s;
-        for (int i = 0; i < HISTORY_LEN; i++) {
-            int idx = (hist_idx - HISTORY_LEN + i + HISTORY_LEN) % HISTORY_LEN;
-            window[i] = history[s][idx];
-        }
-        out[k] = hampel_filter(window, HISTORY_LEN);
-    }
-}
-presence_state_t dsp_get_presence(const float *cleaned_vals)
-{
-    static presence_state_t current = PRESENCE_EMPTY;
-    static int confirm_count = 0;
-
-    float avg_val = 0.0f;
-    for (int i = 0; i < 3; i++) avg_val += cleaned_vals[i];
-    avg_val /= 3.0f;
-
-    // Auto-calibrate baseline during first 20 readings after lock
-    if (!baseline_calibrated) {
-        if (avg_val > 0.1f) {
-            baseline_samples[baseline_sample_count++] = avg_val;
-            if (baseline_sample_count >= 20) {
-                float sum = 0.0f;
-                for (int i = 0; i < 20; i++) sum += baseline_samples[i];
-                baseline_avg = sum / 20.0f;
-                baseline_calibrated = 1;
-                ESP_LOGI("DSP", "Baseline calibrated: %.1f", baseline_avg);
-            }
-        }
-        return PRESENCE_EMPTY;
-    }
-
-    // Dynamic thresholds based on baseline
-    float single_thresh = baseline_avg + 1.5f;
-    float multi_thresh  = baseline_avg + 5.0f;
+    // Motion score = how many times above baseline
+    float ratio = (baseline > 0.001f) ? (variance_score / baseline) : 1.0f;
+    *motion_score_out = ratio;
 
     presence_state_t detected;
-    if (avg_val < single_thresh) {
+    if (ratio < 1.5f) {
         detected = PRESENCE_EMPTY;
-    } else if (avg_val < multi_thresh) {
+    } else if (ratio < 4.0f) {
         detected = PRESENCE_SINGLE;
     } else {
         detected = PRESENCE_MULTI;
     }
 
+    // Confirm before switching — prevents flicker
     if (detected == current) {
-        confirm_count = 0;
+        confirm = 0;
     } else {
-        confirm_count++;
-        if (confirm_count >= PRESENCE_CONFIRM) {
+        confirm++;
+        if (confirm >= PRESENCE_CONFIRM) {
             current = detected;
-            confirm_count = 0;
+            confirm = 0;
+            const char *s[] = {"EMPTY", "SINGLE", "MULTI"};
+            ESP_LOGI(TAG, "Presence -> %s (ratio=%.2f)", s[current], ratio);
         }
     }
 
     return current;
+}
+
+// ─── PUBLIC API ──────────────────────────────────────────────────
+void dsp_processor_init(void)
+{
+    memset(wf, 0, sizeof(wf));
+    memset(br_buf, 0, sizeof(br_buf));
+    total_frames  = 0;
+    br_buf_idx    = 0;
+    br_buf_full   = 0;
+    top_k_locked  = 0;
+    ESP_LOGI(TAG, "DSP ready — Welford variance mode");
+}
+
+void dsp_processor_push(const csi_frame_t *frame)
+{
+    total_frames++;
+
+    // Update Welford stats for every subcarrier
+    for (int s = 0; s < NUM_SUBCARRIERS; s++) {
+        welford_update(&wf[s], frame->amp[s]);
+    }
+
+    // Lock top-K after warmup
+    if (!top_k_locked && total_frames == WARMUP_FRAMES) {
+        select_top_k();
+    }
+}
+
+csi_output_t dsp_processor_get_output(void)
+{
+    csi_output_t out;
+    memset(&out, 0, sizeof(out));
+
+    // Raw subcarrier amplitudes for dashboard heatmap
+    // Use current mean as the display value
+    for (int s = 0; s < NUM_SUBCARRIERS; s++) {
+        out.subcarriers[s] = wf[s].mean;
+    }
+
+    if (!top_k_locked || total_frames < WARMUP_FRAMES) {
+        out.presence = PRESENCE_EMPTY;
+        return out;
+    }
+
+    // Compute combined variance score across top-K subcarriers
+    // This is the core signal — high when someone moves, low when empty
+    float variance_score = 0.0f;
+    for (int k = 0; k < TOP_K; k++) {
+        variance_score += wf[top_k[k]].variance;
+    }
+    variance_score /= TOP_K;
+
+    // Presence detection via variance ratio
+    float motion_score = 0.0f;
+    out.presence      = detect_presence(variance_score, &motion_score);
+    out.motion_score  = motion_score;
+    out.presence_score = variance_score;
+
+    // Person count estimate from motion score
+    if (out.presence == PRESENCE_EMPTY) {
+        out.person_count = 0;
+    } else if (out.presence == PRESENCE_SINGLE) {
+        out.person_count = 1;
+    } else {
+        out.person_count = 2; // 2+ — exact count needs multi-node
+    }
+
+    // Feed variance signal into BR buffer at ~10Hz
+    // (dsp_task calls get_output at ~10Hz already)
+    br_buf[br_buf_idx] = variance_score;
+    br_buf_idx = (br_buf_idx + 1) % BR_BUF_LEN;
+    if (br_buf_idx == 0) br_buf_full = 1;
+
+    // BR extraction — only when single occupancy and buffer full
+    if (out.presence == PRESENCE_SINGLE && br_buf_full) {
+        // Apply Hampel to remove motion artifact spikes
+        float clean_buf[BR_BUF_LEN];
+        for (int i = 0; i < BR_BUF_LEN; i++) {
+            clean_buf[i] = hampel_point(br_buf, BR_BUF_LEN, i);
+        }
+
+        // Remove DC (subtract mean)
+        float mean = 0.0f;
+        for (int i = 0; i < BR_BUF_LEN; i++) mean += clean_buf[i];
+        mean /= BR_BUF_LEN;
+        for (int i = 0; i < BR_BUF_LEN; i++) clean_buf[i] -= mean;
+
+        // Find peak in breathing range 0.1-0.5 Hz
+        float br_hz = find_peak_hz(clean_buf, BR_BUF_LEN, 0.1f, 0.5f);
+        out.br_hz  = br_hz;
+        out.br_bpm = (int)(br_hz * 60.0f);
+    }
+
+    return out;
 }
