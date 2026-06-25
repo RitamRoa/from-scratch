@@ -1,20 +1,38 @@
 #pragma once
 #include "csi_handler.h"
 
-#define HAMPEL_WINDOW   10
-#define HAMPEL_THRESH   3.0f
+// ─── WELFORD STATE ───────────────────────────────────────────────
+typedef struct {
+    float    mean;
+    float    M2;
+    float    variance;
+    uint32_t count;
+} welford_t;
 
-// Presence enum must be defined before function declarations
+// ─── PRESENCE ────────────────────────────────────────────────────
 typedef enum {
-    PRESENCE_EMPTY   = 0,
-    PRESENCE_SINGLE  = 1,
-    PRESENCE_MULTI   = 2
+    PRESENCE_EMPTY  = 0,
+    PRESENCE_SINGLE = 1,
+    PRESENCE_MULTI  = 2
 } presence_state_t;
 
-#define PRESENCE_THRESHOLD  9.5f
-#define PRESENCE_CONFIRM    5
+// ─── OUTPUT PACKET ───────────────────────────────────────────────
+// Everything the WebSocket will send
+typedef struct {
+    presence_state_t presence;
+    int              person_count;
+    float            presence_score;
+    float            motion_score;
+    float            br_hz;          // breathing rate in Hz (0 = unknown)
+    int              br_bpm;         // breathing rate in BPM
+    float            rssi;
+    float            subcarriers[64]; // raw amplitudes for heatmap
+} csi_output_t;
 
-void dsp_processor_init(void);
-void dsp_processor_push(const csi_frame_t *frame);
-void dsp_processor_get_signal(float *out, int *top_k_indices);
-presence_state_t dsp_get_presence(const float *cleaned_vals);
+#define HAMPEL_THRESH    3.0f
+#define PRESENCE_CONFIRM 5
+#define WARMUP_FRAMES    150   // frames before detection starts
+
+void             dsp_processor_init(void);
+void             dsp_processor_push(const csi_frame_t *frame);
+csi_output_t     dsp_processor_get_output(void);
