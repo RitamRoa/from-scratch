@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AMBIENT SENSE — WiFi CSI Polar Heatmap</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;background:#000;overflow:hidden;font-family:'Courier New',Courier,monospace;color:#fff;user-select:none}
+#c{display:block;width:100%;height:100%;position:absolute;inset:0;z-index:1}
+#hud{position:absolute;inset:0;z-index:10;pointer-events:none}
+.card{position:absolute;background:rgba(0,8,0,0.82);border:1px solid rgba(0,255,100,0.15);padding:12px 14px}
+.clbl{font-size:9px;letter-spacing:3px;color:#3a3a3a;text-transform:uppercase;margin-bottom:8px}
+.vrow{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
+.vkey{font-size:9px;letter-spacing:2px;color:#3a3a3a}
+.vval{font-size:14px;font-weight:bold;letter-spacing:1px}
+#demo-badge{position:absolute;top:16px;left:50%;transform:translateX(-50%);font-size:10px;letter-spacing:3px;color:#ffaa00;border:1px solid rgba(255,170,0,0.3);background:rgba(255,170,0,0.06);padding:4px 14px;display:none}
+#bar-btm{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);width:500px;background:rgba(0,8,0,0.85);border:1px solid rgba(0,255,100,0.12);padding:8px 20px;display:flex;align-items:center;justify-content:space-between}
+.bbi{display:flex;flex-direction:column;align-items:center;gap:2px}
+.bkey{font-size:8px;letter-spacing:2px;color:#3a3a3a}
+.bval{font-size:12px;font-weight:bold;letter-spacing:1px}
+.bsep{width:1px;height:26px;background:rgba(255,255,255,0.06)}
+#conn-info{position:absolute;bottom:20px;left:16px}
+#conn-line{display:flex;align-items:center;gap:6px}
+#conn-dot{width:7px;height:7px;background:#330000;flex-shrink:0}
+#conn-dot.live{background:#00ff88;box-shadow:0 0 6px #00ff88;animation:blink 1.4s ease-in-out infinite}
+#conn-dot.demo{background:#ffaa00;box-shadow:0 0 5px #ffaa00;animation:blink 1.4s ease-in-out infinite}
+#conn-dot.dead{background:#ff2200}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
+#branding{position:absolute;bottom:20px;right:16px;text-align:right;font-size:9px;letter-spacing:2px;color:#2a2a2a;line-height:2}
+#conf-bar-bg{width:100%;height:2px;background:rgba(255,255,255,0.06);margin-top:6px}
+#conf-bar-fill{height:100%;width:0%;background:#00ff88;transition:width 0.4s ease}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:999;background:repeating-linear-gradient(to bottom,transparent 0,transparent 2px,rgba(0,0,0,0.025) 2px,rgba(0,0,0,0.025) 3px)}
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<div id="hud">
+  <div id="demo-badge">DEMO MODE</div>
+
+  <!-- TOP LEFT: Presence -->
+  <div class="card" style="top:16px;left:16px;width:178px">
+    <div class="clbl">PRESENCE</div>
+    <div id="pres-val" style="font-size:22px;font-weight:bold;letter-spacing:2px;margin-bottom:4px;color:#444">VACANT</div>
+    <div id="pres-pers" style="font-size:10px;color:#444;letter-spacing:1px">0 PERSONS DETECTED</div>
+  </div>
+
+  <!-- TOP RIGHT: Vitals -->
+  <div class="card" style="top:16px;right:16px;width:178px">
+    <div class="clbl">VITAL SIGNS</div>
+    <div class="vrow">
+      <span class="vkey">BREATHING</span>
+      <span class="vval" id="vit-br" style="color:#444">-- BPM</span>
+    </div>
+    <div class="vrow">
+      <span class="vkey">HEART RATE</span>
+      <span class="vval" style="color:#2a2a2a;font-size:11px">-- (V2)</span>
+    </div>
+    <div class="vrow">
+      <span class="vkey">CONFIDENCE</span>
+      <span class="vval" id="vit-conf" style="color:#00ff88">0%</span>
+    </div>
+    <div id="conf-bar-bg"><div id="conf-bar-fill"></div></div>
+  </div>
+
+  <!-- BOTTOM CENTER -->
+  <div id="bar-btm">
+    <div class="bbi">
+      <span class="bkey">RSSI</span>
+      <span class="bval" id="bb-rssi" style="color:#00ff88">--- dBm</span>
+    </div>
+    <div class="bsep"></div>
+    <div class="bbi">
+      <span class="bkey">MOTION</span>
+      <span class="bval" id="bb-mot" style="color:#fff">0.00</span>
+    </div>
+    <div class="bsep"></div>
+    <div class="bbi">
+      <span class="bkey">BR</span>
+      <span class="bval" id="bb-br" style="color:#fff">--</span>
+    </div>
+    <div class="bsep"></div>
+    <div class="bbi">
+      <span class="bkey">SIGNAL</span>
+      <span class="bval" id="bb-sig" style="color:#00ff88">---</span>
+    </div>
+  </div>
+
+  <!-- BOTTOM LEFT -->
+  <div id="conn-info">
+    <div id="conn-line">
+      <div id="conn-dot" class="dead"></div>
+      <span id="conn-lbl" style="font-size:9px;letter-spacing:1px;color:#555">DISCONNECTED</span>
+    </div>
+    <div style="font-size:8px;color:#2a2a2a;letter-spacing:1px;margin-top:2px">ws://10.71.92.83/ws</div>
+  </div>
+
+  <!-- BOTTOM RIGHT -->
+  <div id="branding">
+    <div>AMBIENT SENSE</div>
+    <div>WIFI CSI HEATMAP</div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* ═══════════════════════════════════════════════════
+   CONSTANTS
+═══════════════════════════════════════════════════ */
+var RINGS    = 8;
+var SEGS     = 12;
+var RS       = 52;   // ring spacing px
+var MAX_EXTR = 42;   // max extrusion px
+// Segment draw order: back-to-front (computed from isometric depth)
+var SEG_ORDER = [7,6,8,5,9,4,10,3,11,0,2,1];
+
+/* ═══════════════════════════════════════════════════
+   CANVAS
+═══════════════════════════════════════════════════ */
+var canvas = document.getElementById('c');
+var ctx    = canvas.getContext('2d');
+var W=0, H=0, OX=0, OY=0;
+
+function resize(){
+  var dpr = window.devicePixelRatio || 1;
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width  = Math.round(W * dpr);
+  canvas.height = Math.round(H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  OX = W / 2;
+  OY = H * 0.50;
+}
+window.addEventListener('resize', resize);
+resize();
+
+/* ═══════════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════════ */
+// [ring-index 0-7][segment 0-11]
+var htarget  = [];
+var hcurrent = [];
+for(var _r=0; _r<RINGS; _r++){
+  htarget.push(new Float32Array(SEGS));
+  hcurrent.push(new Float32Array(SEGS));
+  htarget[_r].fill(0.02);
+}
+
+var lastData = {presence:'EMPTY',person_count:0,motion_score:0,br_bpm:0,rssi:-60,subcarriers:[]};
+var isDemo=false, isConn=false;
+var ws=null, fallTimer=null, reconTimer=null, demoTimer=null;
+var pulseT=0;
+
+// Demo state
+var demoTick=0, demoPhase=0, demoPhaseTimer=0, demoHotSeg=0, demoHotDir=1;
+var DPHASES=[
+  {p:'EMPTY',  pc:0, dur:80 },
+  {p:'SINGLE', pc:1, dur:150},
+  {p:'MULTI',  pc:2, dur:80 }
+];
+
+/* ═══════════════════════════════════════════════════
+   ISO PROJECTION
+═══════════════════════════════════════════════════ */
+function isoPoint(ring, angDeg){
+  var a   = angDeg * Math.PI / 180;
+  var rad = ring * RS;
+  var x   = rad * Math.cos(a);
+  var y   = rad * Math.sin(a);
+  return {
+    x: OX + x - y * 0.5,
+    y: OY + (x + y) * 0.4
+  };
+}
+
+/* ═══════════════════════════════════════════════════
+   COLOR
+═══════════════════════════════════════════════════ */
+function heatRGB(h){
+  var r=0,g=0,b=0,t;
+  if(h < 0.10){ r=0;   g=8;   b=0; }
+  else if(h < 0.25){ t=(h-0.10)/0.15; r=0;                  g=Math.round(8  +(26 -8  )*t); b=0; }
+  else if(h < 0.40){ t=(h-0.25)/0.15; r=0;                  g=Math.round(26 +(68 -26 )*t); b=0; }
+  else if(h < 0.55){ t=(h-0.40)/0.15; r=0;                  g=Math.round(68 +(153-68 )*t); b=0; }
+  else if(h < 0.70){ t=(h-0.55)/0.15; r=Math.round((170)*t);g=Math.round(153+(204-153)*t); b=0; }
+  else if(h < 0.82){ t=(h-0.70)/0.12; r=Math.round(170+(255-170)*t); g=Math.round(204+(170-204)*t); b=0; }
+  else if(h < 0.92){ t=(h-0.82)/0.10; r=255; g=Math.round(170+(85 -170)*t); b=0; }
+  else              { t=(h-0.92)/0.08; r=255; g=Math.round(85 +(17 -85 )*t); b=0; }
+  return [Math.min(255,Math.max(0,r)), Math.min(255,Math.max(0,g)), Math.min(255,Math.max(0,b))];
+}
+
+function rgb(r,g,b)  { return 'rgb('+r+','+g+','+b+')'; }
+function rgba(r,g,b,a){ return 'rgba('+r+','+g+','+b+','+a+')'; }
+function darken(c,f)  { return [Math.round(c[0]*f), Math.round(c[1]*f), Math.round(c[2]*f)]; }
+
+/* ═══════════════════════════════════════════════════
+   POLYGON HELPERS
+═══════════════════════════════════════════════════ */
+function fillPoly(pts, color){
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for(var i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+function strokePoly(pts, color, lw){
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for(var i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.closePath();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lw || 0.5;
+  ctx.stroke();
+}
+
+/* ═══════════════════════════════════════════════════
+   DRAW CELL  (ri=0..7, si=0..11)
+   ri=0 → inner radius=0, outer radius=RS  (ring 1)
+   ri=7 → inner radius=7*RS, outer radius=8*RS (ring 8)
+═══════════════════════════════════════════════════ */
+function drawCell(ri, si, heat){
+  var extH = heat * MAX_EXTR;
+  var a0   = si * 30;
+  var a1   = (si + 1) * 30;
+
+  // Ground corners
+  var AG = isoPoint(ri,   a0);  // inner-left
+  var BG = isoPoint(ri,   a1);  // inner-right
+  var CG = isoPoint(ri+1, a1);  // outer-right
+  var DG = isoPoint(ri+1, a0);  // outer-left
+
+  var col = heatRGB(heat);
+
+  if(extH < 0.5){
+    // Flat cell — dark fill
+    var fc = darken(col, 0.5);
+    fillPoly([AG,BG,CG,DG], rgb(fc[0],fc[1],fc[2]));
+    strokePoly([AG,BG,CG,DG], 'rgba(0,30,0,0.2)', 0.4);
+    return;
+  }
+
+  // Elevated corners (top face)
+  var AT = {x:AG.x, y:AG.y - extH};
+  var BT = {x:BG.x, y:BG.y - extH};
+  var CT = {x:CG.x, y:CG.y - extH};
+  var DT = {x:DG.x, y:DG.y - extH};
+
+  var topColor  = rgb(col[0], col[1], col[2]);
+  var wallOuter = darken(col, 0.4);
+  var wallInner = darken(col, 0.25);
+
+  // Determine which wall faces viewer
+  var ca = (si + 0.5) * 30 * Math.PI / 180;
+  var facing = Math.cos(ca) + Math.sin(ca); // >0 means outer faces viewer
+
+  if(facing > 0.05){
+    // Outer wall visible (front-facing cells)
+    fillPoly([DT,CT,CG,DG], rgb(wallOuter[0],wallOuter[1],wallOuter[2]));
+    strokePoly([DT,CT,CG,DG], 'rgba(0,0,0,0.4)', 0.3);
+  } else if(facing < -0.05){
+    // Inner wall visible (back-facing cells)
+    fillPoly([AT,BT,BG,AG], rgb(wallInner[0],wallInner[1],wallInner[2]));
+    strokePoly([AT,BT,BG,AG], 'rgba(0,0,0,0.4)', 0.3);
+  }
+
+  // Top face
+  fillPoly([AT,BT,CT,DT], topColor);
+  if(heat > 0.5){
+    strokePoly([AT,BT,CT,DT], 'rgba(255,255,255,0.08)', 0.4);
+  } else {
+    strokePoly([AT,BT,CT,DT], 'rgba(0,0,0,0.35)', 0.4);
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   GRID GUIDES
+═══════════════════════════════════════════════════ */
+function drawGridGuides(){
+  // Ring ellipses
+  for(var ring=1; ring<=RINGS; ring++){
+    ctx.strokeStyle = (ring % 2 === 0)
+      ? 'rgba(0,50,15,0.55)'
+      : 'rgba(0,28,8,0.3)';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    var first = true;
+    for(var a=0; a<=360; a+=3){
+      var pt = isoPoint(ring, a);
+      if(first){ ctx.moveTo(pt.x, pt.y); first=false; }
+      else       ctx.lineTo(pt.x, pt.y);
+    }
+    ctx.closePath();
+    ctx.stroke();
+  }
+  // Radial segment lines
+  ctx.strokeStyle = 'rgba(0,35,10,0.2)';
+  ctx.lineWidth   = 0.4;
+  for(var s=0; s<SEGS; s++){
+    var outer = isoPoint(RINGS, s * 30);
+    ctx.beginPath();
+    ctx.moveTo(OX, OY);
+    ctx.lineTo(outer.x, outer.y);
+    ctx.stroke();
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   ESP32 CENTER NODE
+═══════════════════════════════════════════════════ */
+function drawCenter(){
+  var t     = pulseT * 2 * Math.PI / 2; // 2s period
+  var scale = 0.9 + 0.1 * Math.sin(t);
+  var glow  = 0.7 + 0.3 * Math.sin(t);
+
+  // Outer glow halo
+  var grad = ctx.createRadialGradient(OX, OY, 0, OX, OY, 22 * scale);
+  grad.addColorStop(0,   rgba(0, 212, 255, (glow * 0.45).toFixed(2)));
+  grad.addColorStop(0.5, rgba(0, 212, 255, (glow * 0.15).toFixed(2)));
+  grad.addColorStop(1,   rgba(0, 212, 255, 0));
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(OX, OY, 22 * scale, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Core circle
+  ctx.fillStyle = '#00d4ff';
+  ctx.beginPath();
+  ctx.arc(OX, OY, 10 * scale, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Inner dot
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(OX, OY, 3 * scale, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Label
+  ctx.fillStyle   = 'rgba(0,212,255,0.85)';
+  ctx.font        = 'bold 10px Courier New,monospace';
+  ctx.textAlign   = 'center';
+  ctx.textBaseline= 'bottom';
+  ctx.fillText('ESP32-S3', OX, OY - 14 * scale - 2);
+  ctx.textAlign   = 'left';
+  ctx.textBaseline= 'alphabetic';
+}
+
+/* ═══════════════════════════════════════════════════
+   PRESENCE BEACON
+═══════════════════════════════════════════════════ */
+function findHottest(){
+  var bestH = -1, bestR = 0, bestS = 0;
+  for(var r=0; r<RINGS; r++){
+    for(var s=0; s<SEGS; s++){
+      if(hcurrent[r][s] > bestH){ bestH=hcurrent[r][s]; bestR=r; bestS=s; }
+    }
+  }
+  return {ri:bestR, si:bestS, heat:bestH};
+}
+
+function drawBeacon(){
+  var best = findHottest();
+  if(best.heat < 0.3) return;
+
+  var extH     = best.heat * MAX_EXTR;
+  var cAng     = (best.si + 0.5) * 30;
+  var cRing    = best.ri + 0.5;  // fractional ring for cell center
+  var pt       = isoPoint(cRing, cAng);
+  var bx       = pt.x, by = pt.y - extH;
+
+  // Pulse at BR rate if available
+  var bpm      = lastData.br_bpm || 0;
+  var pFreq    = bpm > 0 ? bpm / 60 : 0.5;
+  var pAlpha   = 0.5 + 0.5 * Math.sin(pulseT * 2 * Math.PI * pFreq);
+
+  // Beam
+  var grad = ctx.createLinearGradient(bx, by - 70, bx, by);
+  var beamH = 70;
+  grad.addColorStop(0,   rgba(0, 255, 136, (pAlpha * 0.95).toFixed(2)));
+  grad.addColorStop(0.55,rgba(0, 255, 136, (pAlpha * 0.4).toFixed(2)));
+  grad.addColorStop(1,   rgba(0, 255, 136, 0));
+  ctx.fillStyle = grad;
+  ctx.fillRect(bx - 2, by - beamH, 4, beamH);
+
+  // Glow at base
+  var grd2 = ctx.createRadialGradient(bx, by, 0, bx, by, 22);
+  grd2.addColorStop(0, rgba(0, 255, 136, (pAlpha * 0.28).toFixed(2)));
+  grd2.addColorStop(1, rgba(0, 255, 136, 0));
+  ctx.fillStyle = grd2;
+  ctx.fillRect(bx - 18, by - 18, 36, 36);
+}
+
+/* ═══════════════════════════════════════════════════
+   RING LABELS
+═══════════════════════════════════════════════════ */
+function drawRingLabels(){
+  var labels = [[2,'1M'],[4,'2M'],[6,'3M'],[8,'6M']];
+  ctx.fillStyle    = '#1a3a1a';
+  ctx.font         = '9px Courier New,monospace';
+  ctx.textAlign    = 'left';
+  ctx.textBaseline = 'middle';
+  for(var i=0; i<labels.length; i++){
+    var ring = labels[i][0];
+    var text = labels[i][1];
+    // Draw at 90° position (right side of each ring in isometric)
+    var pt = isoPoint(ring, 0);
+    ctx.fillText(text, pt.x + 5, pt.y);
+  }
+  ctx.textAlign    = 'left';
+  ctx.textBaseline = 'alphabetic';
+}
+
+/* ═══════════════════════════════════════════════════
+   RENDER LOOP
+═══════════════════════════════════════════════════ */
+function render(){
+  requestAnimationFrame(render);
+  pulseT += 0.016; // ~60fps advance
+
+  // Lerp heat values
+  for(var r=0; r<RINGS; r++){
+    for(var s=0; s<SEGS; s++){
+      hcurrent[r][s] += (htarget[r][s] - hcurrent[r][s]) * 0.05;
+    }
+  }
+
+  // Clear
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid guides (under cells)
+  drawGridGuides();
+
+  // Cells: rings far-to-near (7→0), segments back-to-front
+  for(var ri = RINGS-1; ri >= 0; ri--){
+    for(var oi=0; oi<SEG_ORDER.length; oi++){
+      var si = SEG_ORDER[oi];
+      drawCell(ri, si, hcurrent[ri][si]);
+    }
+  }
+
+  // Center node (on top)
+  drawCenter();
+
+  // Beacon
+  var pres = lastData.presence;
+  if(pres === 'SINGLE' || pres === 'MULTI'){
+    drawBeacon();
+    if(pres === 'MULTI'){
+      // Find second hottest and draw a second beacon
+      var best1 = findHottest();
+      var best2h = -1, best2r=0, best2s=0;
+      for(var r2=0;r2<RINGS;r2++){
+        for(var s2=0;s2<SEGS;s2++){
+          if(r2===best1.ri && s2===best1.si) continue;
+          if(hcurrent[r2][s2] > best2h){ best2h=hcurrent[r2][s2]; best2r=r2; best2s=s2; }
+        }
+      }
+      if(best2h > 0.3){
+        var extH2  = best2h * MAX_EXTR;
+        var pt2    = isoPoint(best2r+0.5, (best2s+0.5)*30);
+        var bx2    = pt2.x, by2 = pt2.y - extH2;
+        var bpm2   = lastData.br_bpm || 0;
+        var pf2    = bpm2>0?bpm2/60:0.5;
+        var pa2    = 0.5+0.5*Math.sin(pulseT*2*Math.PI*pf2 + Math.PI*0.6);
+        var g2     = ctx.createLinearGradient(bx2,by2-50,bx2,by2);
+        g2.addColorStop(0,   rgba(255,170,0,(pa2*0.85).toFixed(2)));
+        g2.addColorStop(0.55,rgba(255,170,0,(pa2*0.35).toFixed(2)));
+        g2.addColorStop(1,   rgba(255,170,0,0));
+        ctx.fillStyle=g2;
+        ctx.fillRect(bx2-1.5,by2-50,3,50);
+        var g2b=ctx.createRadialGradient(bx2,by2,0,bx2,by2,16);
+        g2b.addColorStop(0,rgba(255,170,0,(pa2*0.22).toFixed(2)));
+        g2b.addColorStop(1,rgba(255,170,0,0));
+        ctx.fillStyle=g2b;
+        ctx.fillRect(bx2-16,by2-16,32,32);
+      }
+    }
+  }
+
+  // Ring labels (on top)
+  drawRingLabels();
+}
+
+/* ═══════════════════════════════════════════════════
+   CSI → HEAT TARGETS
+═══════════════════════════════════════════════════ */
+function gaussian(x, mean, sigma){
+  return Math.exp(-0.5 * Math.pow((x - mean) / sigma, 2));
+}
+
+function buildHeatTarget(data){
+  var subs  = data.subcarriers || [];
+  var rssi  = (data.rssi !== undefined) ? data.rssi : -60;
+  var pres  = data.presence || 'EMPTY';
+
+  // Segment averages: 5 subcarriers each (indices 0-59)
+  var segVals = new Float32Array(SEGS);
+  for(var s=0; s<SEGS; s++){
+    var start = s * 5, sum = 0;
+    for(var i=start; i<start+5; i++) sum += (subs[i] || 0);
+    segVals[s] = sum / 5;
+  }
+
+  // Normalize
+  var sMin=Infinity, sMax=-Infinity;
+  for(var s2=0;s2<SEGS;s2++){
+    if(segVals[s2]<sMin) sMin=segVals[s2];
+    if(segVals[s2]>sMax) sMax=segVals[s2];
+  }
+  var sRange = sMax - sMin || 1;
+  for(var s3=0;s3<SEGS;s3++) segVals[s3] = (segVals[s3]-sMin)/sRange;
+
+  // Peak ring from RSSI
+  var peakRing;
+  if     (rssi > -35) peakRing = 1.5;
+  else if(rssi > -45) peakRing = 2.5;
+  else if(rssi > -55) peakRing = 3.5;
+  else if(rssi > -65) peakRing = 4.5;
+  else if(rssi > -75) peakRing = 5.5;
+  else                peakRing = 7.0;
+
+  var presMulti = (pres==='EMPTY') ? 0.15 : (pres==='SINGLE') ? 1.0 : 1.2;
+
+  for(var ri=0; ri<RINGS; ri++){
+    var ringNum = ri + 1; // 1-8
+    var gw = gaussian(ringNum, peakRing, 1.5);
+    for(var si=0; si<SEGS; si++){
+      htarget[ri][si] = Math.min(1, segVals[si] * gw * presMulti);
+    }
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   HUD
+═══════════════════════════════════════════════════ */
+var domPresVal  = document.getElementById('pres-val');
+var domPresPers = document.getElementById('pres-pers');
+var domVitBr    = document.getElementById('vit-br');
+var domVitConf  = document.getElementById('vit-conf');
+var domConfFill = document.getElementById('conf-bar-fill');
+var domBbRssi   = document.getElementById('bb-rssi');
+var domBbMot    = document.getElementById('bb-mot');
+var domBbBr     = document.getElementById('bb-br');
+var domBbSig    = document.getElementById('bb-sig');
+var domConnDot  = document.getElementById('conn-dot');
+var domConnLbl  = document.getElementById('conn-lbl');
+var domDemoBadge= document.getElementById('demo-badge');
+
+function updateHUD(data){
+  var p    = data.presence || 'EMPTY';
+  var pc   = (data.person_count !== undefined) ? data.person_count : 0;
+  var bpm  = data.br_bpm  || 0;
+  var rssi = (data.rssi   !== undefined) ? data.rssi : -100;
+  var ms   = data.motion_score || 0;
+
+  // Presence card
+  if(p === 'EMPTY'){
+    domPresVal.textContent = 'VACANT';
+    domPresVal.style.color = '#444';
+  } else if(p === 'SINGLE'){
+    domPresVal.textContent = 'OCCUPIED';
+    domPresVal.style.color = '#00ff88';
+  } else {
+    domPresVal.textContent = 'MULTIPLE';
+    domPresVal.style.color = '#ffaa00';
+  }
+  domPresPers.textContent = pc + ' PERSON' + (pc!==1?'S':'') + ' DETECTED';
+
+  // Vitals
+  if(bpm > 0 && p === 'SINGLE'){
+    domVitBr.textContent = bpm + ' BPM';
+    domVitBr.style.color = (bpm>=12 && bpm<=20) ? '#00ff88' : '#ffaa00';
+  } else {
+    domVitBr.textContent = '-- BPM';
+    domVitBr.style.color = '#444';
+  }
+  var conf = (p !== 'EMPTY') ? Math.min(85 + ms*8, 99) : 0;
+  domVitConf.textContent   = Math.round(conf) + '%';
+  domConfFill.style.width  = conf + '%';
+
+  // Bottom bar
+  var rc;
+  if(rssi > -45){
+    rc='#00ff88'; domBbSig.textContent='STRONG'; domBbSig.style.color='#00ff88';
+  } else if(rssi > -65){
+    rc='#ffaa00'; domBbSig.textContent='MED';    domBbSig.style.color='#ffaa00';
+  } else {
+    rc='#ff2200'; domBbSig.textContent='WEAK';   domBbSig.style.color='#ff2200';
+  }
+  domBbRssi.textContent  = rssi + ' dBm';
+  domBbRssi.style.color  = rc;
+  domBbMot.textContent   = ms.toFixed(2);
+  domBbMot.style.color   = ms<2?'#ffffff':ms<5?'#ffaa00':'#ff4400';
+  domBbBr.textContent    = bpm>0 ? bpm+' BPM' : '--';
+
+  buildHeatTarget(data);
+}
+
+function setConnState(st){
+  domConnDot.className = '';
+  if(st === 'live'){
+    domConnDot.className    = 'live';
+    domConnLbl.textContent  = 'LIVE';
+    domConnLbl.style.color  = '#00ff88';
+    domDemoBadge.style.display = 'none';
+  } else if(st === 'demo'){
+    domConnDot.className    = 'demo';
+    domConnLbl.textContent  = 'DEMO';
+    domConnLbl.style.color  = '#ffaa00';
+    domDemoBadge.style.display = 'block';
+  } else {
+    domConnDot.className    = 'dead';
+    domConnLbl.textContent  = 'DISCONNECTED';
+    domConnLbl.style.color  = '#555';
+    domDemoBadge.style.display = 'none';
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   DEMO MODE
+═══════════════════════════════════════════════════ */
+function genDemo(){
+  demoTick++;
+  demoPhaseTimer++;
+  var ph = DPHASES[demoPhase];
+  if(demoPhaseTimer >= ph.dur){
+    demoPhase      = (demoPhase+1) % 3;
+    demoPhaseTimer = 0;
+  }
+  var phase = DPHASES[demoPhase];
+  var t     = demoTick * 0.1;
+
+  // Rotate hot segment every 20 ticks (~2s)
+  if(demoTick % 20 === 0){
+    demoHotSeg = (demoHotSeg + demoHotDir + SEGS) % SEGS;
+    if(demoHotSeg === 0 || demoHotSeg === SEGS-1) demoHotDir *= -1;
+  }
+
+  // RSSI cycle: 20s = 200 ticks
+  var rCyc = (demoTick % 200) / 200;
+  var rssi = Math.round(-35 + (-60+35) * 0.5 * (1 - Math.cos(rCyc * 2 * Math.PI)));
+
+  // Build subcarrier array
+  var subs = new Array(64);
+  for(var i=0; i<64; i++){
+    var base   = 10 + 2 * Math.sin(t*0.3 + i*0.1);
+    var noise  = (Math.random() - 0.5) * 1.5;
+    var seg    = Math.floor(i / 5);
+    var hot    = 0;
+    if(phase.p !== 'EMPTY'){
+      var dist = Math.min(
+        Math.abs(seg - demoHotSeg),
+        SEGS - Math.abs(seg - demoHotSeg)
+      );
+      if(dist <= 1){
+        var spread = 1 - dist * 0.5;
+        hot = spread * (phase.p==='SINGLE' ? 12 : 18) * (0.8 + 0.2*Math.sin(t*0.5));
+      }
+    }
+    subs[i] = Math.max(0, base + noise + hot);
+  }
+
+  var ms = phase.p==='EMPTY'  ? 0.2 + Math.random()*0.2
+         : phase.p==='SINGLE' ? 2.0 + Math.sin(t)*0.7
+         : 4.5 + Math.sin(t*0.7)*0.4;
+  var br = phase.p==='SINGLE' ? Math.round(15 + 3*Math.sin(t*0.04)) : 0;
+
+  var data = {
+    subcarriers:  subs,
+    presence:     phase.p,
+    person_count: phase.pc,
+    motion_score: Math.max(0, ms),
+    br_bpm:       br,
+    rssi:         Math.max(-85, Math.min(-30, rssi))
+  };
+  lastData = data;
+  updateHUD(data);
+}
+
+function startDemo(){
+  if(isDemo) return;
+  isDemo = true;
+  setConnState('demo');
+  demoTimer = setInterval(genDemo, 100);
+}
+function stopDemo(){
+  if(!isDemo) return;
+  isDemo = false;
+  if(demoTimer){ clearInterval(demoTimer); demoTimer=null; }
+}
+
+/* ═══════════════════════════════════════════════════
+   WEBSOCKET
+═══════════════════════════════════════════════════ */
+function connectWS(){
+  if(ws){
+    ws.onopen=ws.onmessage=ws.onerror=ws.onclose=null;
+    try{ ws.close(); }catch(e){}
+    ws=null;
+  }
+  setConnState('disconnected');
+  if(fallTimer) clearTimeout(fallTimer);
+  fallTimer = setTimeout(function(){ if(!isConn) startDemo(); }, 5000);
+
+  try{ ws = new WebSocket('ws://10.71.92.83/ws'); }
+  catch(e){ schedRecon(); return; }
+
+  ws.onopen = function(){
+    isConn = true;
+    if(fallTimer){ clearTimeout(fallTimer); fallTimer=null; }
+    stopDemo();
+    setConnState('live');
+  };
+  ws.onmessage = function(e){
+    try{
+      var d = JSON.parse(e.data);
+      lastData = d;
+      updateHUD(d);
+    }catch(ex){}
+  };
+  ws.onerror = function(){};
+  ws.onclose = function(){
+    isConn = false;
+    setConnState('disconnected');
+    schedRecon();
+    if(!isDemo) startDemo();
+  };
+}
+function schedRecon(){
+  if(reconTimer) clearTimeout(reconTimer);
+  reconTimer = setTimeout(connectWS, 3000);
+}
+
+/* ═══════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════ */
+requestAnimationFrame(render);
+connectWS();
+
+})();
+</script>
+</body>
+</html>
