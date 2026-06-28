@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,8 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{width:100%;height:100%;background:#000;overflow:hidden;font-family:'Courier New',Courier,monospace;color:#fff;user-select:none}
-#c{display:block;width:100%;height:100%;position:absolute;inset:0;z-index:1}
+#c{display:block;width:100%;height:100%;position:absolute;inset:0;z-index:1;cursor:grab}
+#c.dragging{cursor:grabbing}
 #hud{position:absolute;inset:0;z-index:10;pointer-events:none}
 .card{position:absolute;background:rgba(0,8,0,0.82);border:1px solid rgba(0,255,100,0.15);padding:12px 14px}
 .clbl{font-size:9px;letter-spacing:3px;color:#3a3a3a;text-transform:uppercase;margin-bottom:8px}
@@ -95,6 +96,7 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:999;ba
       <span id="conn-lbl" style="font-size:9px;letter-spacing:1px;color:#555">DISCONNECTED</span>
     </div>
     <div style="font-size:8px;color:#2a2a2a;letter-spacing:1px;margin-top:2px">ws://10.71.92.83/ws</div>
+    <div style="font-size:7px;color:#1a3a1a;letter-spacing:1px;margin-top:4px;max-width:220px;line-height:1.5">MOUNT ESP32 ANTENNA FACING NORTH FOR ACCURATE MAPPING</div>
   </div>
 
   <!-- BOTTOM RIGHT -->
@@ -112,18 +114,40 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:999;ba
    CONSTANTS
 ═══════════════════════════════════════════════════ */
 var RINGS    = 8;
-var SEGS     = 12;
-var RS       = 52;   // ring spacing px
-var MAX_EXTR = 42;   // max extrusion px
-// Segment draw order: back-to-front (computed from isometric depth)
-var SEG_ORDER = [7,6,8,5,9,4,10,3,11,0,2,1];
+var SEGS     = 16;        // 16 angular segments, 22.5° each
+var SEG_DEG  = 22.5;      // degrees per segment
+var RS       = 65;        // ring spacing px
+var MAX_EXTR = 45;        // max extrusion px
+
+// Compass labels: [angleDeg, label] for cardinal + ordinal directions
+var COMPASS = [
+  [0,   'N' ], [22.5,'NNE'], [45,  'NE' ], [67.5,'ENE'],
+  [90,  'E' ], [112.5,'ESE'],[135, 'SE' ], [157.5,'SSE'],
+  [180, 'S' ], [202.5,'SSW'],[225, 'SW' ], [247.5,'WSW'],
+  [270, 'W' ], [292.5,'WNW'],[315, 'NW' ], [337.5,'NNW']
+];
+// Only draw main 8 compass points
+var COMPASS_MAIN = [
+  [0,'N'],[45,'NE'],[90,'E'],[135,'SE'],
+  [180,'S'],[225,'SW'],[270,'W'],[315,'NW']
+];
+
+// Ring labels [ringNum, label]
+var RING_LABELS = [[2,'1M'],[4,'2M'],[6,'4M'],[8,'6M']];
 
 /* ═══════════════════════════════════════════════════
-   CANVAS
+   CANVAS + DRAG/ROTATE STATE
 ═══════════════════════════════════════════════════ */
 var canvas = document.getElementById('c');
 var ctx    = canvas.getContext('2d');
 var W=0, H=0, OX=0, OY=0;
+
+// Orbit: viewAngle rotates the whole grid around its center
+var viewAngle  = 0;   // radians — user can rotate
+var viewPitch  = 0.4; // isometric pitch factor (0.4 = default)
+var isDragging = false;
+var dragX      = 0, dragY = 0;
+var dragAngle  = 0;
 
 function resize(){
   var dpr = window.devicePixelRatio || 1;
@@ -133,15 +157,47 @@ function resize(){
   canvas.height = Math.round(H * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   OX = W / 2;
-  OY = H * 0.50;
+  OY = H * 0.42;
 }
 window.addEventListener('resize', resize);
 resize();
 
+// Mouse drag to rotate
+canvas.addEventListener('mousedown', function(e){
+  isDragging = true;
+  dragX      = e.clientX;
+  dragY      = e.clientY;
+  dragAngle  = viewAngle;
+  canvas.classList.add('dragging');
+});
+window.addEventListener('mousemove', function(e){
+  if(!isDragging) return;
+  var dx = e.clientX - dragX;
+  viewAngle = dragAngle + dx * 0.008;
+});
+window.addEventListener('mouseup', function(){
+  isDragging = false;
+  canvas.classList.remove('dragging');
+});
+
+// Touch drag
+canvas.addEventListener('touchstart', function(e){
+  isDragging = true;
+  dragX      = e.touches[0].clientX;
+  dragY      = e.touches[0].clientY;
+  dragAngle  = viewAngle;
+});
+window.addEventListener('touchmove', function(e){
+  if(!isDragging) return;
+  var dx = e.touches[0].clientX - dragX;
+  viewAngle = dragAngle + dx * 0.008;
+});
+window.addEventListener('touchend', function(){ isDragging = false; });
+
 /* ═══════════════════════════════════════════════════
    STATE
 ═══════════════════════════════════════════════════ */
-// [ring-index 0-7][segment 0-11]
+// [ring-index 0-7][segment 0-15]
 var htarget  = [];
 var hcurrent = [];
 for(var _r=0; _r<RINGS; _r++){
@@ -164,10 +220,10 @@ var DPHASES=[
 ];
 
 /* ═══════════════════════════════════════════════════
-   ISO PROJECTION
+   ISO PROJECTION (with rotation)
 ═══════════════════════════════════════════════════ */
 function isoPoint(ring, angDeg){
-  var a   = angDeg * Math.PI / 180;
+  var a   = (angDeg + viewAngle * 180 / Math.PI) * Math.PI / 180;
   var rad = ring * RS;
   var x   = rad * Math.cos(a);
   var y   = rad * Math.sin(a);
@@ -186,7 +242,7 @@ function heatRGB(h){
   else if(h < 0.25){ t=(h-0.10)/0.15; r=0;                  g=Math.round(8  +(26 -8  )*t); b=0; }
   else if(h < 0.40){ t=(h-0.25)/0.15; r=0;                  g=Math.round(26 +(68 -26 )*t); b=0; }
   else if(h < 0.55){ t=(h-0.40)/0.15; r=0;                  g=Math.round(68 +(153-68 )*t); b=0; }
-  else if(h < 0.70){ t=(h-0.55)/0.15; r=Math.round((170)*t);g=Math.round(153+(204-153)*t); b=0; }
+  else if(h < 0.70){ t=(h-0.55)/0.15; r=Math.round(170*t);  g=Math.round(153+(204-153)*t); b=0; }
   else if(h < 0.82){ t=(h-0.70)/0.12; r=Math.round(170+(255-170)*t); g=Math.round(204+(170-204)*t); b=0; }
   else if(h < 0.92){ t=(h-0.82)/0.10; r=255; g=Math.round(170+(85 -170)*t); b=0; }
   else              { t=(h-0.92)/0.08; r=255; g=Math.round(85 +(17 -85 )*t); b=0; }
@@ -219,61 +275,53 @@ function strokePoly(pts, color, lw){
 }
 
 /* ═══════════════════════════════════════════════════
-   DRAW CELL  (ri=0..7, si=0..11)
-   ri=0 → inner radius=0, outer radius=RS  (ring 1)
-   ri=7 → inner radius=7*RS, outer radius=8*RS (ring 8)
+   DRAW CELL — used in sort-by-screenY pipeline
 ═══════════════════════════════════════════════════ */
 function drawCell(ri, si, heat){
   var extH = heat * MAX_EXTR;
-  var a0   = si * 30;
-  var a1   = (si + 1) * 30;
+  var a0   = si * SEG_DEG;
+  var a1   = (si + 1) * SEG_DEG;
 
-  // Ground corners
-  var AG = isoPoint(ri,   a0);  // inner-left
-  var BG = isoPoint(ri,   a1);  // inner-right
-  var CG = isoPoint(ri+1, a1);  // outer-right
-  var DG = isoPoint(ri+1, a0);  // outer-left
+  var AG = isoPoint(ri,   a0);
+  var BG = isoPoint(ri,   a1);
+  var CG = isoPoint(ri+1, a1);
+  var DG = isoPoint(ri+1, a0);
 
   var col = heatRGB(heat);
 
   if(extH < 0.5){
-    // Flat cell — dark fill
     var fc = darken(col, 0.5);
     fillPoly([AG,BG,CG,DG], rgb(fc[0],fc[1],fc[2]));
-    strokePoly([AG,BG,CG,DG], 'rgba(0,30,0,0.2)', 0.4);
+    strokePoly([AG,BG,CG,DG], 'rgba(0,30,0,0.18)', 0.4);
     return;
   }
 
-  // Elevated corners (top face)
   var AT = {x:AG.x, y:AG.y - extH};
   var BT = {x:BG.x, y:BG.y - extH};
   var CT = {x:CG.x, y:CG.y - extH};
   var DT = {x:DG.x, y:DG.y - extH};
 
   var topColor  = rgb(col[0], col[1], col[2]);
-  var wallOuter = darken(col, 0.4);
+  var wallOuter = darken(col, 0.40);
   var wallInner = darken(col, 0.25);
 
-  // Determine which wall faces viewer
-  var ca = (si + 0.5) * 30 * Math.PI / 180;
-  var facing = Math.cos(ca) + Math.sin(ca); // >0 means outer faces viewer
+  // Which wall faces viewer (depends on view angle)
+  var ca = (si + 0.5) * SEG_DEG * Math.PI / 180 + viewAngle;
+  var facing = Math.cos(ca) + Math.sin(ca);
 
   if(facing > 0.05){
-    // Outer wall visible (front-facing cells)
     fillPoly([DT,CT,CG,DG], rgb(wallOuter[0],wallOuter[1],wallOuter[2]));
     strokePoly([DT,CT,CG,DG], 'rgba(0,0,0,0.4)', 0.3);
   } else if(facing < -0.05){
-    // Inner wall visible (back-facing cells)
     fillPoly([AT,BT,BG,AG], rgb(wallInner[0],wallInner[1],wallInner[2]));
     strokePoly([AT,BT,BG,AG], 'rgba(0,0,0,0.4)', 0.3);
   }
 
-  // Top face
   fillPoly([AT,BT,CT,DT], topColor);
   if(heat > 0.5){
-    strokePoly([AT,BT,CT,DT], 'rgba(255,255,255,0.08)', 0.4);
+    strokePoly([AT,BT,CT,DT], 'rgba(255,255,255,0.1)', 0.4);
   } else {
-    strokePoly([AT,BT,CT,DT], 'rgba(0,0,0,0.35)', 0.4);
+    strokePoly([AT,BT,CT,DT], 'rgba(0,0,0,0.3)', 0.4);
   }
 }
 
@@ -281,15 +329,12 @@ function drawCell(ri, si, heat){
    GRID GUIDES
 ═══════════════════════════════════════════════════ */
 function drawGridGuides(){
-  // Ring ellipses
   for(var ring=1; ring<=RINGS; ring++){
-    ctx.strokeStyle = (ring % 2 === 0)
-      ? 'rgba(0,50,15,0.55)'
-      : 'rgba(0,28,8,0.3)';
+    ctx.strokeStyle = (ring % 2 === 0) ? 'rgba(0,55,18,0.6)' : 'rgba(0,32,10,0.32)';
     ctx.lineWidth = 0.5;
     ctx.beginPath();
     var first = true;
-    for(var a=0; a<=360; a+=3){
+    for(var a=0; a<=360; a+=2){
       var pt = isoPoint(ring, a);
       if(first){ ctx.moveTo(pt.x, pt.y); first=false; }
       else       ctx.lineTo(pt.x, pt.y);
@@ -297,11 +342,11 @@ function drawGridGuides(){
     ctx.closePath();
     ctx.stroke();
   }
-  // Radial segment lines
-  ctx.strokeStyle = 'rgba(0,35,10,0.2)';
+  // Radial segment dividers
+  ctx.strokeStyle = 'rgba(0,40,12,0.22)';
   ctx.lineWidth   = 0.4;
   for(var s=0; s<SEGS; s++){
-    var outer = isoPoint(RINGS, s * 30);
+    var outer = isoPoint(RINGS, s * SEG_DEG);
     ctx.beginPath();
     ctx.moveTo(OX, OY);
     ctx.lineTo(outer.x, outer.y);
@@ -310,36 +355,75 @@ function drawGridGuides(){
 }
 
 /* ═══════════════════════════════════════════════════
+   COMPASS LABELS
+═══════════════════════════════════════════════════ */
+function drawCompass(){
+  ctx.font         = 'bold 11px Courier New,monospace';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  for(var i=0; i<COMPASS_MAIN.length; i++){
+    var angDeg = COMPASS_MAIN[i][0];
+    var label  = COMPASS_MAIN[i][1];
+    // Place just outside ring 8 (at ring 8.7)
+    var pt = isoPoint(8.85, angDeg);
+    // N and cardinal labels slightly bolder
+    var isCard = (label==='N'||label==='S'||label==='E'||label==='W');
+    ctx.fillStyle = isCard ? '#2a6a2a' : '#1a4a1a';
+    ctx.font = isCard
+      ? 'bold 11px Courier New,monospace'
+      : '9px Courier New,monospace';
+    ctx.fillText(label, pt.x, pt.y);
+  }
+  ctx.textAlign    = 'left';
+  ctx.textBaseline = 'alphabetic';
+}
+
+/* ═══════════════════════════════════════════════════
+   RING LABELS
+═══════════════════════════════════════════════════ */
+function drawRingLabels(){
+  ctx.font         = 'bold 10px Courier New,monospace';
+  ctx.textAlign    = 'left';
+  ctx.textBaseline = 'middle';
+  for(var i=0; i<RING_LABELS.length; i++){
+    var ring = RING_LABELS[i][0];
+    var text = RING_LABELS[i][1];
+    // East position: 90° in world coords, just outside that ring arc
+    var pt = isoPoint(ring, 90);
+    ctx.fillStyle = '#2a5a2a';
+    ctx.fillText(text, pt.x + 6, pt.y);
+  }
+  ctx.textAlign    = 'left';
+  ctx.textBaseline = 'alphabetic';
+}
+
+/* ═══════════════════════════════════════════════════
    ESP32 CENTER NODE
 ═══════════════════════════════════════════════════ */
 function drawCenter(){
-  var t     = pulseT * 2 * Math.PI / 2; // 2s period
+  var t     = pulseT * 2 * Math.PI / 2;
   var scale = 0.9 + 0.1 * Math.sin(t);
   var glow  = 0.7 + 0.3 * Math.sin(t);
 
-  // Outer glow halo
-  var grad = ctx.createRadialGradient(OX, OY, 0, OX, OY, 22 * scale);
-  grad.addColorStop(0,   rgba(0, 212, 255, (glow * 0.45).toFixed(2)));
-  grad.addColorStop(0.5, rgba(0, 212, 255, (glow * 0.15).toFixed(2)));
+  var grad = ctx.createRadialGradient(OX, OY, 0, OX, OY, 26 * scale);
+  grad.addColorStop(0,   rgba(0, 212, 255, (glow * 0.5).toFixed(2)));
+  grad.addColorStop(0.5, rgba(0, 212, 255, (glow * 0.18).toFixed(2)));
   grad.addColorStop(1,   rgba(0, 212, 255, 0));
   ctx.fillStyle = grad;
   ctx.beginPath();
-  ctx.arc(OX, OY, 22 * scale, 0, Math.PI * 2);
+  ctx.arc(OX, OY, 26 * scale, 0, Math.PI * 2);
   ctx.fill();
 
-  // Core circle
   ctx.fillStyle = '#00d4ff';
   ctx.beginPath();
   ctx.arc(OX, OY, 10 * scale, 0, Math.PI * 2);
   ctx.fill();
 
-  // Inner dot
   ctx.fillStyle = '#ffffff';
   ctx.beginPath();
   ctx.arc(OX, OY, 3 * scale, 0, Math.PI * 2);
   ctx.fill();
 
-  // Label
   ctx.fillStyle   = 'rgba(0,212,255,0.85)';
   ctx.font        = 'bold 10px Courier New,monospace';
   ctx.textAlign   = 'center';
@@ -353,141 +437,107 @@ function drawCenter(){
    PRESENCE BEACON
 ═══════════════════════════════════════════════════ */
 function findHottest(){
-  var bestH = -1, bestR = 0, bestS = 0;
-  for(var r=0; r<RINGS; r++){
-    for(var s=0; s<SEGS; s++){
-      if(hcurrent[r][s] > bestH){ bestH=hcurrent[r][s]; bestR=r; bestS=s; }
+  var bestH=-1, bestR=0, bestS=0;
+  for(var r=0;r<RINGS;r++){
+    for(var s=0;s<SEGS;s++){
+      if(hcurrent[r][s]>bestH){bestH=hcurrent[r][s];bestR=r;bestS=s;}
     }
   }
-  return {ri:bestR, si:bestS, heat:bestH};
+  return {ri:bestR,si:bestS,heat:bestH};
 }
 
-function drawBeacon(){
-  var best = findHottest();
-  if(best.heat < 0.3) return;
+function drawBeaconAt(ri, si, heat, colorR, colorG, colorB, phase){
+  var extH  = heat * MAX_EXTR;
+  var cAng  = (si + 0.5) * SEG_DEG;
+  var pt    = isoPoint(ri + 0.5, cAng);
+  var bx    = pt.x, by = pt.y - extH;
+  var bpm   = lastData.br_bpm || 0;
+  var pFreq = bpm > 0 ? bpm / 60 : 0.5;
+  var pa    = 0.5 + 0.5 * Math.sin(pulseT * 2 * Math.PI * pFreq + (phase||0));
 
-  var extH     = best.heat * MAX_EXTR;
-  var cAng     = (best.si + 0.5) * 30;
-  var cRing    = best.ri + 0.5;  // fractional ring for cell center
-  var pt       = isoPoint(cRing, cAng);
-  var bx       = pt.x, by = pt.y - extH;
-
-  // Pulse at BR rate if available
-  var bpm      = lastData.br_bpm || 0;
-  var pFreq    = bpm > 0 ? bpm / 60 : 0.5;
-  var pAlpha   = 0.5 + 0.5 * Math.sin(pulseT * 2 * Math.PI * pFreq);
-
-  // Beam
-  var grad = ctx.createLinearGradient(bx, by - 70, bx, by);
-  var beamH = 70;
-  grad.addColorStop(0,   rgba(0, 255, 136, (pAlpha * 0.95).toFixed(2)));
-  grad.addColorStop(0.55,rgba(0, 255, 136, (pAlpha * 0.4).toFixed(2)));
-  grad.addColorStop(1,   rgba(0, 255, 136, 0));
+  var grad = ctx.createLinearGradient(bx, by - 80, bx, by);
+  grad.addColorStop(0,    rgba(colorR,colorG,colorB,(pa*0.95).toFixed(2)));
+  grad.addColorStop(0.55, rgba(colorR,colorG,colorB,(pa*0.4).toFixed(2)));
+  grad.addColorStop(1,    rgba(colorR,colorG,colorB,0));
   ctx.fillStyle = grad;
-  ctx.fillRect(bx - 2, by - beamH, 4, beamH);
+  ctx.fillRect(bx - 2, by - 80, 4, 80);
 
-  // Glow at base
-  var grd2 = ctx.createRadialGradient(bx, by, 0, bx, by, 22);
-  grd2.addColorStop(0, rgba(0, 255, 136, (pAlpha * 0.28).toFixed(2)));
-  grd2.addColorStop(1, rgba(0, 255, 136, 0));
+  var grd2 = ctx.createRadialGradient(bx, by, 0, bx, by, 26);
+  grd2.addColorStop(0, rgba(colorR,colorG,colorB,(pa*0.3).toFixed(2)));
+  grd2.addColorStop(1, rgba(colorR,colorG,colorB,0));
   ctx.fillStyle = grd2;
-  ctx.fillRect(bx - 18, by - 18, 36, 36);
+  ctx.fillRect(bx-26,by-26,52,52);
 }
 
 /* ═══════════════════════════════════════════════════
-   RING LABELS
-═══════════════════════════════════════════════════ */
-function drawRingLabels(){
-  var labels = [[2,'1M'],[4,'2M'],[6,'3M'],[8,'6M']];
-  ctx.fillStyle    = '#1a3a1a';
-  ctx.font         = '9px Courier New,monospace';
-  ctx.textAlign    = 'left';
-  ctx.textBaseline = 'middle';
-  for(var i=0; i<labels.length; i++){
-    var ring = labels[i][0];
-    var text = labels[i][1];
-    // Draw at 90° position (right side of each ring in isometric)
-    var pt = isoPoint(ring, 0);
-    ctx.fillText(text, pt.x + 5, pt.y);
-  }
-  ctx.textAlign    = 'left';
-  ctx.textBaseline = 'alphabetic';
-}
-
-/* ═══════════════════════════════════════════════════
-   RENDER LOOP
+   RENDER LOOP — sort-by-screenY draw order
 ═══════════════════════════════════════════════════ */
 function render(){
   requestAnimationFrame(render);
-  pulseT += 0.016; // ~60fps advance
+  pulseT += 0.016;
 
-  // Lerp heat values
-  for(var r=0; r<RINGS; r++){
-    for(var s=0; s<SEGS; s++){
+  // Lerp heat
+  for(var r=0;r<RINGS;r++){
+    for(var s=0;s<SEGS;s++){
       hcurrent[r][s] += (htarget[r][s] - hcurrent[r][s]) * 0.05;
     }
   }
 
-  // Clear
   ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, W, H);
 
-  // Grid guides (under cells)
   drawGridGuides();
 
-  // Cells: rings far-to-near (7→0), segments back-to-front
-  for(var ri = RINGS-1; ri >= 0; ri--){
-    for(var oi=0; oi<SEG_ORDER.length; oi++){
-      var si = SEG_ORDER[oi];
-      drawCell(ri, si, hcurrent[ri][si]);
+  // ── SORTED DRAW ORDER ──────────────────────────────
+  // Collect all 96 cells with their representative screenY
+  var cells = [];
+  for(var ri=0;ri<RINGS;ri++){
+    for(var si=0;si<SEGS;si++){
+      // Representative point: outer arc midpoint (determines depth)
+      var midAngle = (si + 0.5) * SEG_DEG;
+      var outerPt  = isoPoint(ri + 1, midAngle);
+      var innerPt  = isoPoint(ri,     midAngle);
+      var avgY     = (outerPt.y + innerPt.y) * 0.5;
+      cells.push({ri:ri, si:si, sortY:avgY});
     }
   }
+  // Sort ascending screenY = back-to-front
+  cells.sort(function(a,b){ return a.sortY - b.sortY; });
 
-  // Center node (on top)
+  for(var ci=0;ci<cells.length;ci++){
+    var c = cells[ci];
+    drawCell(c.ri, c.si, hcurrent[c.ri][c.si]);
+  }
+  // ──────────────────────────────────────────────────
+
   drawCenter();
 
-  // Beacon
   var pres = lastData.presence;
   if(pres === 'SINGLE' || pres === 'MULTI'){
-    drawBeacon();
+    var best1 = findHottest();
+    if(best1.heat >= 0.3){
+      drawBeaconAt(best1.ri, best1.si, best1.heat, 0, 255, 136, 0);
+    }
     if(pres === 'MULTI'){
-      // Find second hottest and draw a second beacon
-      var best1 = findHottest();
-      var best2h = -1, best2r=0, best2s=0;
+      var best2h=-1, best2r=0, best2s=0;
       for(var r2=0;r2<RINGS;r2++){
         for(var s2=0;s2<SEGS;s2++){
           if(r2===best1.ri && s2===best1.si) continue;
           if(hcurrent[r2][s2] > best2h){ best2h=hcurrent[r2][s2]; best2r=r2; best2s=s2; }
         }
       }
-      if(best2h > 0.3){
-        var extH2  = best2h * MAX_EXTR;
-        var pt2    = isoPoint(best2r+0.5, (best2s+0.5)*30);
-        var bx2    = pt2.x, by2 = pt2.y - extH2;
-        var bpm2   = lastData.br_bpm || 0;
-        var pf2    = bpm2>0?bpm2/60:0.5;
-        var pa2    = 0.5+0.5*Math.sin(pulseT*2*Math.PI*pf2 + Math.PI*0.6);
-        var g2     = ctx.createLinearGradient(bx2,by2-50,bx2,by2);
-        g2.addColorStop(0,   rgba(255,170,0,(pa2*0.85).toFixed(2)));
-        g2.addColorStop(0.55,rgba(255,170,0,(pa2*0.35).toFixed(2)));
-        g2.addColorStop(1,   rgba(255,170,0,0));
-        ctx.fillStyle=g2;
-        ctx.fillRect(bx2-1.5,by2-50,3,50);
-        var g2b=ctx.createRadialGradient(bx2,by2,0,bx2,by2,16);
-        g2b.addColorStop(0,rgba(255,170,0,(pa2*0.22).toFixed(2)));
-        g2b.addColorStop(1,rgba(255,170,0,0));
-        ctx.fillStyle=g2b;
-        ctx.fillRect(bx2-16,by2-16,32,32);
+      if(best2h >= 0.3){
+        drawBeaconAt(best2r, best2s, best2h, 255, 170, 0, Math.PI * 0.6);
       }
     }
   }
 
-  // Ring labels (on top)
+  drawCompass();
   drawRingLabels();
 }
 
 /* ═══════════════════════════════════════════════════
-   CSI → HEAT TARGETS
+   CSI → HEAT TARGETS  (16 segments × 4 subcarriers)
 ═══════════════════════════════════════════════════ */
 function gaussian(x, mean, sigma){
   return Math.exp(-0.5 * Math.pow((x - mean) / sigma, 2));
@@ -498,22 +548,34 @@ function buildHeatTarget(data){
   var rssi  = (data.rssi !== undefined) ? data.rssi : -60;
   var pres  = data.presence || 'EMPTY';
 
-  // Segment averages: 5 subcarriers each (indices 0-59)
+  // 16 segments × 4 subcarriers = 64 total
   var segVals = new Float32Array(SEGS);
   for(var s=0; s<SEGS; s++){
-    var start = s * 5, sum = 0;
-    for(var i=start; i<start+5; i++) sum += (subs[i] || 0);
-    segVals[s] = sum / 5;
+    var start = s * 4, sum = 0;
+    for(var i=start; i<start+4; i++) sum += (subs[i] || 0);
+    segVals[s] = sum / 4;
   }
 
-  // Normalize
+  // Normalize segment values
   var sMin=Infinity, sMax=-Infinity;
   for(var s2=0;s2<SEGS;s2++){
     if(segVals[s2]<sMin) sMin=segVals[s2];
     if(segVals[s2]>sMax) sMax=segVals[s2];
   }
   var sRange = sMax - sMin || 1;
-  for(var s3=0;s3<SEGS;s3++) segVals[s3] = (segVals[s3]-sMin)/sRange;
+  for(var s3=0;s3<SEGS;s3++) segVals[s3]=(segVals[s3]-sMin)/sRange;
+
+  // Angular spread: apply 0.6x heat to adjacent segments
+  var segSpread = new Float32Array(SEGS);
+  for(var s4=0;s4<SEGS;s4++){
+    var left  = (s4 - 1 + SEGS) % SEGS;
+    var right = (s4 + 1) % SEGS;
+    segSpread[s4] = Math.min(1,
+      segVals[s4] +
+      segVals[left]  * 0.6 +
+      segVals[right] * 0.6
+    );
+  }
 
   // Peak ring from RSSI
   var peakRing;
@@ -527,10 +589,10 @@ function buildHeatTarget(data){
   var presMulti = (pres==='EMPTY') ? 0.15 : (pres==='SINGLE') ? 1.0 : 1.2;
 
   for(var ri=0; ri<RINGS; ri++){
-    var ringNum = ri + 1; // 1-8
-    var gw = gaussian(ringNum, peakRing, 1.5);
+    var ringNum = ri + 1;
+    var gw = gaussian(ringNum, peakRing, 2.5);  // sigma=2.5 for wide spread
     for(var si=0; si<SEGS; si++){
-      htarget[ri][si] = Math.min(1, segVals[si] * gw * presMulti);
+      htarget[ri][si] = Math.min(1, segSpread[si] * gw * presMulti);
     }
   }
 }
@@ -558,7 +620,6 @@ function updateHUD(data){
   var rssi = (data.rssi   !== undefined) ? data.rssi : -100;
   var ms   = data.motion_score || 0;
 
-  // Presence card
   if(p === 'EMPTY'){
     domPresVal.textContent = 'VACANT';
     domPresVal.style.color = '#444';
@@ -571,7 +632,6 @@ function updateHUD(data){
   }
   domPresPers.textContent = pc + ' PERSON' + (pc!==1?'S':'') + ' DETECTED';
 
-  // Vitals
   if(bpm > 0 && p === 'SINGLE'){
     domVitBr.textContent = bpm + ' BPM';
     domVitBr.style.color = (bpm>=12 && bpm<=20) ? '#00ff88' : '#ffaa00';
@@ -580,10 +640,9 @@ function updateHUD(data){
     domVitBr.style.color = '#444';
   }
   var conf = (p !== 'EMPTY') ? Math.min(85 + ms*8, 99) : 0;
-  domVitConf.textContent   = Math.round(conf) + '%';
-  domConfFill.style.width  = conf + '%';
+  domVitConf.textContent  = Math.round(conf) + '%';
+  domConfFill.style.width = conf + '%';
 
-  // Bottom bar
   var rc;
   if(rssi > -45){
     rc='#00ff88'; domBbSig.textContent='STRONG'; domBbSig.style.color='#00ff88';
@@ -622,7 +681,7 @@ function setConnState(st){
 }
 
 /* ═══════════════════════════════════════════════════
-   DEMO MODE
+   DEMO MODE (updated for 16 segments, 4 subs each)
 ═══════════════════════════════════════════════════ */
 function genDemo(){
   demoTick++;
@@ -635,30 +694,28 @@ function genDemo(){
   var phase = DPHASES[demoPhase];
   var t     = demoTick * 0.1;
 
-  // Rotate hot segment every 20 ticks (~2s)
   if(demoTick % 20 === 0){
     demoHotSeg = (demoHotSeg + demoHotDir + SEGS) % SEGS;
     if(demoHotSeg === 0 || demoHotSeg === SEGS-1) demoHotDir *= -1;
   }
 
-  // RSSI cycle: 20s = 200 ticks
   var rCyc = (demoTick % 200) / 200;
   var rssi = Math.round(-35 + (-60+35) * 0.5 * (1 - Math.cos(rCyc * 2 * Math.PI)));
 
-  // Build subcarrier array
+  // 64 subcarriers: 16 segments × 4 each
   var subs = new Array(64);
   for(var i=0; i<64; i++){
-    var base   = 10 + 2 * Math.sin(t*0.3 + i*0.1);
-    var noise  = (Math.random() - 0.5) * 1.5;
-    var seg    = Math.floor(i / 5);
-    var hot    = 0;
+    var base  = 10 + 2 * Math.sin(t*0.3 + i*0.1);
+    var noise = (Math.random() - 0.5) * 1.5;
+    var seg   = Math.floor(i / 4);   // which of the 16 segments
+    var hot   = 0;
     if(phase.p !== 'EMPTY'){
       var dist = Math.min(
         Math.abs(seg - demoHotSeg),
         SEGS - Math.abs(seg - demoHotSeg)
       );
-      if(dist <= 1){
-        var spread = 1 - dist * 0.5;
+      if(dist <= 2){
+        var spread = 1 - dist * 0.4;
         hot = spread * (phase.p==='SINGLE' ? 12 : 18) * (0.8 + 0.2*Math.sin(t*0.5));
       }
     }
@@ -717,11 +774,7 @@ function connectWS(){
     setConnState('live');
   };
   ws.onmessage = function(e){
-    try{
-      var d = JSON.parse(e.data);
-      lastData = d;
-      updateHUD(d);
-    }catch(ex){}
+    try{ var d=JSON.parse(e.data); lastData=d; updateHUD(d); }catch(ex){}
   };
   ws.onerror = function(){};
   ws.onclose = function(){
