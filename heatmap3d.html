@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -95,7 +95,7 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:999;ba
       <div id="conn-dot" class="dead"></div>
       <span id="conn-lbl" style="font-size:9px;letter-spacing:1px;color:#555">DISCONNECTED</span>
     </div>
-    <div style="font-size:8px;color:#2a2a2a;letter-spacing:1px;margin-top:2px">ws://10.71.92.83/ws</div>
+    <div style="font-size:8px;color:#2a2a2a;letter-spacing:1px;margin-top:2px">ws://10.43.135.83/ws</div>
     <div style="font-size:7px;color:#1a3a1a;letter-spacing:1px;margin-top:4px;max-width:220px;line-height:1.5">MOUNT ESP32 ANTENNA FACING NORTH FOR ACCURATE MAPPING</div>
   </div>
 
@@ -764,7 +764,7 @@ function connectWS(){
   if(fallTimer) clearTimeout(fallTimer);
   fallTimer = setTimeout(function(){ if(!isConn) startDemo(); }, 5000);
 
-  try{ ws = new WebSocket('ws://10.71.92.83/ws'); }
+  try{ ws = new WebSocket('ws://10.43.135.83/ws'); }
   catch(e){ schedRecon(); return; }
 
   ws.onopen = function(){
