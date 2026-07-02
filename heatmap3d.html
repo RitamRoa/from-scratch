@@ -6,7 +6,7 @@
 <title>AMBIENT SENSE — WiFi CSI Polar Heatmap</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{width:100%;height:100%;background:#000;overflow:hidden;font-family:'Courier New',Courier,monospace;color:#fff;user-select:none}
+html,body{width:100%;height:100%;background:radial-gradient(circle at 50% 50%, #030f03 0%, #000000 100%);overflow:hidden;font-family:'Courier New',Courier,monospace;color:#fff;user-select:none}
 #c{display:block;width:100%;height:100%;position:absolute;inset:0;z-index:1;cursor:grab}
 #c.dragging{cursor:grabbing}
 #hud{position:absolute;inset:0;z-index:10;pointer-events:none}
@@ -73,9 +73,12 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:999;ba
       <span class="bval" id="bb-rssi" style="color:#00ff88">--- dBm</span>
     </div>
     <div class="bsep"></div>
-    <div class="bbi">
-      <span class="bkey">MOTION</span>
-      <span class="bval" id="bb-mot" style="color:#fff">0.00</span>
+    <div class="bbi" style="flex-direction:row;gap:10px">
+      <div class="bbi">
+        <span class="bkey">MOTION</span>
+        <span class="bval" id="bb-mot" style="color:#fff">0.00</span>
+      </div>
+      <div id="mot-hist" style="display:flex;align-items:flex-end;gap:2px;height:20px;width:30px"></div>
     </div>
     <div class="bsep"></div>
     <div class="bbi">
@@ -97,6 +100,23 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:999;ba
     </div>
     <div style="font-size:8px;color:#2a2a2a;letter-spacing:1px;margin-top:2px">ws://10.43.135.83/ws</div>
     <div style="font-size:7px;color:#1a3a1a;letter-spacing:1px;margin-top:4px;max-width:220px;line-height:1.5">MOUNT ESP32 ANTENNA FACING NORTH FOR ACCURATE MAPPING</div>
+  </div>
+
+  <!-- ZONE LEGEND -->
+  <div id="zone-legend" class="card" style="bottom:70px;right:16px;width:180px;background:rgba(0,8,0,0.85);border:1px solid rgba(0,255,100,0.15)">
+    <div style="font-size:8px;color:#777;letter-spacing:1px;margin-bottom:6px">SENSING ZONES</div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+      <div style="width:8px;height:8px;border-radius:50%;background:#00ff88"></div>
+      <div style="font-size:9px;color:#ccc">INNER (0-2M) — VITALS</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+      <div style="width:8px;height:8px;border-radius:50%;background:#ffaa00"></div>
+      <div style="font-size:9px;color:#ccc">MID (2-4M) — PRESENCE</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <div style="width:8px;height:8px;border-radius:50%;background:#ff4400"></div>
+      <div style="font-size:9px;color:#ccc">OUTER (4-6M) — MOTION</div>
+    </div>
   </div>
 
   <!-- BOTTOM RIGHT -->
@@ -206,6 +226,7 @@ for(var _r=0; _r<RINGS; _r++){
   htarget[_r].fill(0.02);
 }
 
+var motionHist = [0,0,0,0,0];
 var lastData = {presence:'EMPTY',person_count:0,motion_score:0,br_bpm:0,rssi:-60,subcarriers:[]};
 var isDemo=false, isConn=false;
 var ws=null, fallTimer=null, reconTimer=null, demoTimer=null;
@@ -330,8 +351,12 @@ function drawCell(ri, si, heat){
 ═══════════════════════════════════════════════════ */
 function drawGridGuides(){
   for(var ring=1; ring<=RINGS; ring++){
-    ctx.strokeStyle = (ring % 2 === 0) ? 'rgba(0,55,18,0.6)' : 'rgba(0,32,10,0.32)';
-    ctx.lineWidth = 0.5;
+    var isMain = (ring % 2 === 0);
+    ctx.strokeStyle = isMain ? 'rgba(0,100,0,0.4)' : 'rgba(0,32,10,0.32)';
+    ctx.lineWidth = isMain ? 1 : 0.5;
+    if(isMain) ctx.setLineDash([4, 6]);
+    else ctx.setLineDash([]);
+
     ctx.beginPath();
     var first = true;
     for(var a=0; a<=360; a+=2){
@@ -342,6 +367,7 @@ function drawGridGuides(){
     ctx.closePath();
     ctx.stroke();
   }
+  ctx.setLineDash([]);
   // Radial segment dividers
   ctx.strokeStyle = 'rgba(0,40,12,0.22)';
   ctx.lineWidth   = 0.4;
@@ -383,15 +409,31 @@ function drawCompass(){
 ═══════════════════════════════════════════════════ */
 function drawRingLabels(){
   ctx.font         = 'bold 10px Courier New,monospace';
-  ctx.textAlign    = 'left';
+  ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
   for(var i=0; i<RING_LABELS.length; i++){
     var ring = RING_LABELS[i][0];
     var text = RING_LABELS[i][1];
-    // East position: 90° in world coords, just outside that ring arc
     var pt = isoPoint(ring, 90);
-    ctx.fillStyle = '#2a5a2a';
-    ctx.fillText(text, pt.x + 6, pt.y);
+    var px = pt.x + 20; 
+    var py = pt.y;
+    
+    ctx.fillStyle = '#003300';
+    ctx.strokeStyle = '#00ff00';
+    ctx.lineWidth = 1;
+    var w = 24, h = 14, r = 7;
+    ctx.beginPath();
+    ctx.moveTo(px - w/2 + r, py - h/2);
+    ctx.lineTo(px + w/2 - r, py - h/2);
+    ctx.arcTo(px + w/2, py - h/2, px + w/2, py + h/2, r);
+    ctx.lineTo(px + w/2 - r, py + h/2);
+    ctx.arcTo(px - w/2, py + h/2, px - w/2, py - h/2, r);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(text, px, py + 1);
   }
   ctx.textAlign    = 'left';
   ctx.textBaseline = 'alphabetic';
@@ -402,33 +444,42 @@ function drawRingLabels(){
 ═══════════════════════════════════════════════════ */
 function drawCenter(){
   var t     = pulseT * 2 * Math.PI / 2;
-  var scale = 0.9 + 0.1 * Math.sin(t);
-  var glow  = 0.7 + 0.3 * Math.sin(t);
-
-  var grad = ctx.createRadialGradient(OX, OY, 0, OX, OY, 26 * scale);
-  grad.addColorStop(0,   rgba(0, 212, 255, (glow * 0.5).toFixed(2)));
-  grad.addColorStop(0.5, rgba(0, 212, 255, (glow * 0.18).toFixed(2)));
-  grad.addColorStop(1,   rgba(0, 212, 255, 0));
-  ctx.fillStyle = grad;
+  
+  var phase = (pulseT % 2.0) / 2.0; 
+  var rSize = phase * 60;
+  var rOpac = (1 - phase) * 0.8;
+  
   ctx.beginPath();
-  ctx.arc(OX, OY, 26 * scale, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.strokeStyle = rgba(0, 212, 255, rOpac.toFixed(2));
+  ctx.lineWidth = 1.5;
+  var first = true;
+  for(var a=0; a<=360; a+=10){
+    var aRad = a * Math.PI/180 + viewAngle;
+    var rx = Math.cos(aRad) * rSize;
+    var ry = Math.sin(aRad) * rSize;
+    var px = OX + rx - ry * 0.5;
+    var py = OY + (rx + ry) * 0.4;
+    if(first){ ctx.moveTo(px, py); first=false; }
+    else     { ctx.lineTo(px, py); }
+  }
+  ctx.closePath();
+  ctx.stroke();
 
   ctx.fillStyle = '#00d4ff';
+  ctx.fillRect(OX - 7, OY - 4, 14, 8);
+  
   ctx.beginPath();
-  ctx.arc(OX, OY, 10 * scale, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.strokeStyle = '#00d4ff';
+  ctx.lineWidth = 1.5;
+  ctx.moveTo(OX, OY - 4);
+  ctx.lineTo(OX, OY - 12);
+  ctx.stroke();
 
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath();
-  ctx.arc(OX, OY, 3 * scale, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle   = 'rgba(0,212,255,0.85)';
+  ctx.fillStyle   = '#00d4ff';
   ctx.font        = 'bold 10px Courier New,monospace';
   ctx.textAlign   = 'center';
   ctx.textBaseline= 'bottom';
-  ctx.fillText('ESP32-S3', OX, OY - 14 * scale - 2);
+  ctx.fillText('ESP32-S3', OX, OY + 16);
   ctx.textAlign   = 'left';
   ctx.textBaseline= 'alphabetic';
 }
@@ -446,27 +497,66 @@ function findHottest(){
   return {ri:bestR,si:bestS,heat:bestH};
 }
 
-function drawBeaconAt(ri, si, heat, colorR, colorG, colorB, phase){
+function drawBeaconAt(ri, si, heat, colorHex, phase){
   var extH  = heat * MAX_EXTR;
   var cAng  = (si + 0.5) * SEG_DEG;
   var pt    = isoPoint(ri + 0.5, cAng);
   var bx    = pt.x, by = pt.y - extH;
-  var bpm   = lastData.br_bpm || 0;
-  var pFreq = bpm > 0 ? bpm / 60 : 0.5;
-  var pa    = 0.5 + 0.5 * Math.sin(pulseT * 2 * Math.PI * pFreq + (phase||0));
+  
+  var pa = 0.85 + 0.15 * Math.sin(pulseT * 2 * Math.PI * 1.0 + phase); // 1 Hz pulse
+  
+  ctx.save();
+  ctx.globalAlpha = pa;
 
-  var grad = ctx.createLinearGradient(bx, by - 80, bx, by);
-  grad.addColorStop(0,    rgba(colorR,colorG,colorB,(pa*0.95).toFixed(2)));
-  grad.addColorStop(0.55, rgba(colorR,colorG,colorB,(pa*0.4).toFixed(2)));
-  grad.addColorStop(1,    rgba(colorR,colorG,colorB,0));
-  ctx.fillStyle = grad;
-  ctx.fillRect(bx - 2, by - 80, 4, 80);
+  var hex = colorHex.replace('#','');
+  var r = parseInt(hex.substring(0,2), 16);
+  var g = parseInt(hex.substring(2,4), 16);
+  var b = parseInt(hex.substring(4,6), 16);
+  
+  var fy = by - 40; 
+  
+  var coneGrad = ctx.createLinearGradient(bx, fy, bx, by);
+  coneGrad.addColorStop(0, rgba(r,g,b,0.4));
+  coneGrad.addColorStop(1, rgba(r,g,b,0.0));
+  
+  ctx.beginPath();
+  ctx.moveTo(bx, fy);
+  ctx.lineTo(bx - 15, by);
+  ctx.lineTo(bx + 15, by);
+  ctx.closePath();
+  ctx.fillStyle = coneGrad;
+  ctx.fill();
 
-  var grd2 = ctx.createRadialGradient(bx, by, 0, bx, by, 26);
-  grd2.addColorStop(0, rgba(colorR,colorG,colorB,(pa*0.3).toFixed(2)));
-  grd2.addColorStop(1, rgba(colorR,colorG,colorB,0));
-  ctx.fillStyle = grd2;
-  ctx.fillRect(bx-26,by-26,52,52);
+  var beamGrad = ctx.createLinearGradient(bx, fy - 80, bx, fy);
+  beamGrad.addColorStop(0, rgba(r,g,b,0.0));
+  beamGrad.addColorStop(1, rgba(r,g,b,0.5));
+  ctx.fillStyle = beamGrad;
+  ctx.fillRect(bx - 1, fy - 80, 2, 80);
+
+  var hy = fy - 20; 
+  
+  ctx.shadowColor = colorHex;
+  ctx.shadowBlur = 8;
+  ctx.strokeStyle = colorHex;
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  
+  ctx.beginPath();
+  ctx.arc(bx, hy - 8, 8, 0, Math.PI * 2);
+  ctx.moveTo(bx, hy);
+  ctx.lineTo(bx, fy);
+  ctx.moveTo(bx, hy + 4);
+  ctx.lineTo(bx - 12, hy + 16);
+  ctx.moveTo(bx, hy + 4);
+  ctx.lineTo(bx + 12, hy + 16);
+  ctx.moveTo(bx, fy);
+  ctx.lineTo(bx - 8, fy + 15);
+  ctx.moveTo(bx, fy);
+  ctx.lineTo(bx + 8, fy + 15);
+  ctx.stroke();
+
+  ctx.restore();
 }
 
 /* ═══════════════════════════════════════════════════
@@ -516,7 +606,7 @@ function render(){
   if(pres === 'SINGLE' || pres === 'MULTI'){
     var best1 = findHottest();
     if(best1.heat >= 0.3){
-      drawBeaconAt(best1.ri, best1.si, best1.heat, 0, 255, 136, 0);
+      drawBeaconAt(best1.ri, best1.si, best1.heat, '#00ff88', 0);
     }
     if(pres === 'MULTI'){
       var best2h=-1, best2r=0, best2s=0;
@@ -527,7 +617,7 @@ function render(){
         }
       }
       if(best2h >= 0.3){
-        drawBeaconAt(best2r, best2s, best2h, 255, 170, 0, Math.PI * 0.6);
+        drawBeaconAt(best2r, best2s, best2h, '#ffaa00', Math.PI);
       }
     }
   }
@@ -655,6 +745,17 @@ function updateHUD(data){
   domBbRssi.style.color  = rc;
   domBbMot.textContent   = ms.toFixed(2);
   domBbMot.style.color   = ms<2?'#ffffff':ms<5?'#ffaa00':'#ff4400';
+  
+  motionHist.shift();
+  motionHist.push(ms);
+  var motHtml = '';
+  for(var i=0; i<5; i++){
+    var v = motionHist[i];
+    var h = Math.min(20, Math.max(2, v * 4)); 
+    var c = v<2 ? '#00ff88' : v<5 ? '#ffaa00' : '#ff4400';
+    motHtml += '<div style="width:4px;height:'+h+'px;background:'+c+'; border-radius:1px"></div>';
+  }
+  document.getElementById('mot-hist').innerHTML = motHtml;
   domBbBr.textContent    = bpm>0 ? bpm+' BPM' : '--';
 
   buildHeatTarget(data);
