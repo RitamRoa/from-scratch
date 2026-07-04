@@ -5,44 +5,347 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AMBIENT SENSE — WiFi CSI Polar Heatmap</title>
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Share+Tech+Mono&display=swap');
+
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{width:100%;height:100%;background:radial-gradient(circle at 50% 50%, #030f03 0%, #000000 100%);overflow:hidden;font-family:'Courier New',Courier,monospace;color:#fff;user-select:none}
-#c{display:block;width:100%;height:100%;position:absolute;inset:0;z-index:1;cursor:grab}
+html,body{
+  width:100%;
+  height:100%;
+  background:#060810;
+  overflow:hidden;
+  font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+  color:#e0e6ed;
+  user-select:none;
+}
+
+#c{
+  display:block;
+  width:100%;
+  height:100%;
+  position:absolute;
+  inset:0;
+  z-index:1;
+  cursor:grab;
+}
 #c.dragging{cursor:grabbing}
-#hud{position:absolute;inset:0;z-index:10;pointer-events:none}
-.card{position:absolute;background:rgba(0,8,0,0.82);border:1px solid rgba(0,255,100,0.15);padding:12px 14px}
-.clbl{font-size:9px;letter-spacing:3px;color:#3a3a3a;text-transform:uppercase;margin-bottom:8px}
-.vrow{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
-.vkey{font-size:9px;letter-spacing:2px;color:#3a3a3a}
-.vval{font-size:14px;font-weight:bold;letter-spacing:1px}
-#demo-badge{position:absolute;top:16px;left:50%;transform:translateX(-50%);font-size:10px;letter-spacing:3px;color:#ffaa00;border:1px solid rgba(255,170,0,0.3);background:rgba(255,170,0,0.06);padding:4px 14px;display:none}
-#bar-btm{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);width:500px;background:rgba(0,8,0,0.85);border:1px solid rgba(0,255,100,0.12);padding:8px 20px;display:flex;align-items:center;justify-content:space-between}
-.bbi{display:flex;flex-direction:column;align-items:center;gap:2px}
-.bkey{font-size:8px;letter-spacing:2px;color:#3a3a3a}
-.bval{font-size:12px;font-weight:bold;letter-spacing:1px}
-.bsep{width:1px;height:26px;background:rgba(255,255,255,0.06)}
-#conn-info{position:absolute;bottom:20px;left:16px}
-#conn-line{display:flex;align-items:center;gap:6px}
-#conn-dot{width:7px;height:7px;background:#330000;flex-shrink:0}
-#conn-dot.live{background:#00ff88;box-shadow:0 0 6px #00ff88;animation:blink 1.4s ease-in-out infinite}
-#conn-dot.demo{background:#ffaa00;box-shadow:0 0 5px #ffaa00;animation:blink 1.4s ease-in-out infinite}
-#conn-dot.dead{background:#ff2200}
+
+#hud{
+  position:absolute;
+  inset:0;
+  z-index:10;
+  pointer-events:none;
+}
+
+/* Header Bar styling */
+#header-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 48px;
+  background: rgba(6, 8, 16, 0.95);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 1.5rem;
+  z-index: 20;
+  pointer-events: auto;
+}
+
+.h-left {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.h-logo {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-weight: 700;
+  font-size: 18px;
+  color: #ffffff;
+  letter-spacing: 0.15em;
+  line-height: 1.1;
+}
+
+.h-sub {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 9px;
+  color: #666666;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* State Badge Pill styling */
+.badge-pill {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.badge-pill.demo {
+  background: rgba(255, 170, 0, 0.15);
+  border: 1px solid rgba(255, 170, 0, 0.4);
+  color: #ffaa00;
+}
+
+.badge-pill.live {
+  background: rgba(0, 255, 136, 0.1);
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  color: #00ff88;
+}
+
+.badge-pill.dead {
+  background: rgba(255, 51, 51, 0.1);
+  border: 1px solid rgba(255, 51, 51, 0.3);
+  color: #ff3333;
+}
+
+/* Card layout */
+.card{
+  position:absolute;
+  background:rgba(6, 8, 16, 0.85);
+  border:1px solid rgba(255, 255, 255, 0.08);
+  padding:1.2rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3), 0 0 15px rgba(255,255,255,0.02);
+  pointer-events: auto;
+}
+
+.clbl{
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size:10px;
+  font-weight: 600;
+  letter-spacing:0.15em;
+  color:#666666;
+  text-transform:uppercase;
+  margin-bottom:10px;
+}
+
+.vrow{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:8px;
+}
+
+.vkey{
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size:10px;
+  letter-spacing:0.15em;
+  color:#666666;
+  text-transform: uppercase;
+}
+
+.vval{
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size:15px;
+  font-weight:bold;
+  color: #ffffff;
+}
+
+/* Vitals confidence bar */
+#conf-bar-bg{
+  width:100%;
+  height:2px;
+  background:rgba(255,255,255,0.06);
+  margin-top:8px;
+}
+#conf-bar-fill{
+  height:100%;
+  width:0%;
+  background:rgba(0, 255, 136, 0.6);
+  transition:width 0.4s ease;
+}
+
+/* Bottom Bar */
+#bar-btm{
+  position:absolute;
+  bottom:20px;
+  left:50%;
+  transform:translateX(-50%);
+  width:520px;
+  background:rgba(6, 8, 16, 0.9);
+  border:1px solid rgba(255, 255, 255, 0.06);
+  padding:12px 24px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  pointer-events: auto;
+}
+
+.bbi{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:4px;
+}
+
+.bkey{
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size:9px;
+  letter-spacing:0.1em;
+  color:#666666;
+  text-transform: uppercase;
+}
+
+.bval{
+  font-family: 'Share Tech Mono', monospace;
+  font-size:13px;
+  font-weight:bold;
+}
+
+.bsep{
+  width:1px;
+  height:20px;
+  background:#333333;
+}
+
+/* Connection info in bottom left */
+#conn-info{
+  position:absolute;
+  bottom:20px;
+  left:24px;
+}
+
+#conn-line{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+#conn-dot{
+  width:6px;
+  height:6px;
+  border-radius: 50%;
+  background:#330000;
+  flex-shrink:0;
+}
+#conn-dot.live{
+  background:#00ff88;
+  box-shadow:0 0 6px #00ff88;
+  animation:blink 1.4s ease-in-out infinite;
+}
+#conn-dot.demo{
+  background:#ffaa00;
+  box-shadow:0 0 5px #ffaa00;
+  animation:blink 1.4s ease-in-out infinite;
+}
+#conn-dot.dead{
+  background:#ff3333;
+}
+
+#conn-lbl {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: #444444;
+}
+
+#conn-ip{
+  font-family: 'Share Tech Mono', monospace;
+  font-size:9px;
+  color:#444444;
+  margin-top:4px;
+}
+
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
-#branding{position:absolute;bottom:20px;right:16px;text-align:right;font-size:9px;letter-spacing:2px;color:#2a2a2a;line-height:2}
-#conf-bar-bg{width:100%;height:2px;background:rgba(255,255,255,0.06);margin-top:6px}
-#conf-bar-fill{height:100%;width:0%;background:#00ff88;transition:width 0.4s ease}
-body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:999;background:repeating-linear-gradient(to bottom,transparent 0,transparent 2px,rgba(0,0,0,0.025) 2px,rgba(0,0,0,0.025) 3px)}
-/* ── IP Overlay ── */
-#ip-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:9999;align-items:center;justify-content:center}
+
+#branding{
+  position:absolute;
+  bottom:20px;
+  right:24px;
+  text-align:right;
+}
+
+/* IP Prompt Overlay */
+#ip-ov{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(6, 8, 16, 0.85);
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+  z-index:9999;
+  align-items:center;
+  justify-content:center;
+}
 #ip-ov.show{display:flex}
-#ip-box{background:#020d02;border:1px solid rgba(0,255,100,0.25);padding:28px 32px;width:320px;box-shadow:0 0 40px rgba(0,255,100,0.07);text-align:center}
-#ip-box h3{font-size:11px;letter-spacing:3px;color:#00ff88;text-transform:uppercase;margin-bottom:6px}
-#ip-box p{font-size:9px;color:#3a3a3a;margin-bottom:18px;line-height:1.7;letter-spacing:1px}
-#ip-inp{width:100%;padding:9px 12px;background:rgba(0,255,100,0.04);border:1px solid rgba(0,255,100,0.2);color:#fff;font-size:13px;font-family:'Courier New',monospace;outline:none;text-align:center;margin-bottom:14px;transition:border-color 0.2s;letter-spacing:1px}
-#ip-inp:focus{border-color:#00ff88}
-#ip-btn{width:100%;padding:9px;background:rgba(0,255,100,0.08);border:1px solid rgba(0,255,100,0.3);color:#00ff88;font-size:10px;letter-spacing:3px;text-transform:uppercase;cursor:pointer;transition:background 0.2s;font-family:'Courier New',monospace}
-#ip-btn:hover{background:rgba(0,255,100,0.16)}
-.ip-hint3d{font-size:8px;color:#2a2a2a;margin-top:10px;line-height:1.6;letter-spacing:1px}
+
+#ip-box{
+  background:#060810;
+  border:1px solid rgba(255, 255, 255, 0.08);
+  padding:2.5rem 2rem;
+  width:360px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 20px rgba(255, 255, 255, 0.02);
+  text-align:center;
+}
+
+#ip-box h3{
+  font-family: Georgia, serif;
+  font-weight: 400;
+  font-size: 2rem;
+  color: #ffffff;
+  margin-bottom: 0.5rem;
+}
+
+#ip-box p{
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  color: #666666;
+  margin-bottom: 1.5rem;
+  line-height: 1.4;
+}
+
+#ip-inp{
+  width:100%;
+  padding:12px;
+  background:rgba(255, 255, 255, 0.02);
+  border:1px solid rgba(255, 255, 255, 0.08);
+  color:#fff;
+  font-size:14px;
+  font-family:'Share Tech Mono', monospace;
+  outline:none;
+  text-align:center;
+  margin-bottom:1rem;
+  transition:border-color 0.2s;
+}
+#ip-inp:focus{
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+#ip-btn{
+  width:100%;
+  padding:12px;
+  background:transparent;
+  border:1px solid var(--fg);
+  color:#ffffff;
+  font-size:10px;
+  letter-spacing:3px;
+  text-transform:uppercase;
+  cursor:pointer;
+  transition:all 0.2s;
+  font-family: system-ui, sans-serif;
+  font-weight: 700;
+  border-radius: 999px;
+}
+#ip-btn:hover{
+  background:rgba(255, 255, 255, 0.08);
+}
+
+.ip-hint3d{
+  font-size:10px;
+  color:#444444;
+  margin-top:12px;
+  line-height:1.5;
+}
 </style>
 </head>
 <body>
@@ -50,29 +353,38 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:999;ba
 <canvas id="c"></canvas>
 
 <div id="hud">
-  <div id="demo-badge">DEMO MODE</div>
+  <!-- Header Bar -->
+  <header id="header-bar">
+    <div class="h-left">
+      <div class="h-logo">SPARS</div>
+      <div class="h-sub">WIFI PRESENCE MONITORING</div>
+    </div>
+    <div class="h-right">
+      <div id="state-badge" class="badge-pill dead">OFFLINE</div>
+    </div>
+  </header>
 
   <!-- TOP LEFT: Presence -->
-  <div class="card" style="top:16px;left:16px;width:178px">
-    <div class="clbl">PRESENCE</div>
-    <div id="pres-val" style="font-size:22px;font-weight:bold;letter-spacing:2px;margin-bottom:4px;color:#444">VACANT</div>
-    <div id="pres-pers" style="font-size:10px;color:#444;letter-spacing:1px">0 PERSONS DETECTED</div>
+  <div class="card" style="top:64px;left:16px;width:200px">
+    <div class="clbl">Presence</div>
+    <div id="pres-val" style="font-family: Georgia, serif; font-size: 22px; font-weight: bold; margin-bottom: 6px; color: #ffffff;">VACANT</div>
+    <div id="pres-pers" style="font-family: system-ui, sans-serif; font-size: 11px; color: #888888;">0 PERSONS DETECTED</div>
   </div>
 
   <!-- TOP RIGHT: Vitals -->
-  <div class="card" style="top:16px;right:16px;width:178px">
-    <div class="clbl">VITAL SIGNS</div>
+  <div class="card" style="top:64px;right:16px;width:200px">
+    <div class="clbl">Vital Signs</div>
     <div class="vrow">
-      <span class="vkey">BREATHING</span>
-      <span class="vval" id="vit-br" style="color:#444">-- BPM</span>
+      <span class="vkey">Breathing</span>
+      <span class="vval" id="vit-br" style="font-family: Georgia, serif; font-weight: bold; color: #ffffff;">-- BPM</span>
     </div>
     <div class="vrow">
-      <span class="vkey">HEART RATE</span>
-      <span class="vval" style="color:#2a2a2a;font-size:11px">-- (V2)</span>
+      <span class="vkey">Heart Rate</span>
+      <span class="vval" style="font-family: Georgia, serif; font-weight: bold; color: #444444;">-- BPM</span>
     </div>
-    <div class="vrow">
-      <span class="vkey">CONFIDENCE</span>
-      <span class="vval" id="vit-conf" style="color:#00ff88">0%</span>
+    <div class="vrow" style="margin-top: 10px;">
+      <span class="vkey">Confidence</span>
+      <span class="vval" id="vit-conf" style="font-family: Georgia, serif; font-weight: bold; color: #ffffff;">0%</span>
     </div>
     <div id="conf-bar-bg"><div id="conf-bar-fill"></div></div>
   </div>
@@ -84,21 +396,21 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:999;ba
       <span class="bval" id="bb-rssi" style="color:#00ff88">--- dBm</span>
     </div>
     <div class="bsep"></div>
-    <div class="bbi" style="flex-direction:row;gap:10px">
+    <div class="bbi" style="flex-direction:row;gap:12px">
       <div class="bbi">
-        <span class="bkey">MOTION</span>
-        <span class="bval" id="bb-mot" style="color:#fff">0.00</span>
+        <span class="bkey">Motion</span>
+        <span class="bval" id="bb-mot" style="color:#ffffff">0.00</span>
       </div>
-      <div id="mot-hist" style="display:flex;align-items:flex-end;gap:2px;height:20px;width:30px"></div>
+      <div id="mot-hist" style="display:flex;align-items:flex-end;gap:3px;height:20px;width:30px"></div>
     </div>
     <div class="bsep"></div>
     <div class="bbi">
       <span class="bkey">BR</span>
-      <span class="bval" id="bb-br" style="color:#fff">--</span>
+      <span class="bval" id="bb-br" style="color:#ffffff">--</span>
     </div>
     <div class="bsep"></div>
     <div class="bbi">
-      <span class="bkey">SIGNAL</span>
+      <span class="bkey">Signal</span>
       <span class="bval" id="bb-sig" style="color:#00ff88">---</span>
     </div>
   </div>
@@ -107,33 +419,33 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:999;ba
   <div id="conn-info">
     <div id="conn-line">
       <div id="conn-dot" class="dead"></div>
-      <span id="conn-lbl" style="font-size:9px;letter-spacing:1px;color:#555">DISCONNECTED</span>
+      <span id="conn-lbl">DISCONNECTED</span>
     </div>
-    <div id="conn-ip" style="font-size:8px;color:#2a2a2a;letter-spacing:1px;margin-top:2px"></div>
-    <div style="font-size:7px;color:#1a3a1a;letter-spacing:1px;margin-top:4px;max-width:220px;line-height:1.5">MOUNT ESP32 ANTENNA FACING NORTH FOR ACCURATE MAPPING</div>
+    <div id="conn-ip"></div>
+    <div style="font-family: system-ui, sans-serif; font-size: 10px; color: #444444; letter-spacing: 0.05em; margin-top: 6px;">SPARS // ESP32-S3</div>
   </div>
 
   <!-- ZONE LEGEND -->
-  <div id="zone-legend" class="card" style="bottom:70px;right:16px;width:180px;background:rgba(0,8,0,0.85);border:1px solid rgba(0,255,100,0.15)">
-    <div style="font-size:8px;color:#777;letter-spacing:1px;margin-bottom:6px">SENSING ZONES</div>
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-      <div style="width:8px;height:8px;border-radius:50%;background:#00ff88"></div>
-      <div style="font-size:9px;color:#ccc">INNER (0-2M) — VITALS</div>
+  <div id="zone-legend" class="card" style="bottom:70px;right:16px;width:200px;">
+    <div class="clbl" style="margin-bottom: 8px;">SENSING ZONES</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <div style="width:6px;height:6px;border-radius:50%;background:#00ff88"></div>
+      <div style="font-family:system-ui, sans-serif; font-size:10px; color:#888888">INNER (0-2M) — VITALS</div>
     </div>
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-      <div style="width:8px;height:8px;border-radius:50%;background:#ffaa00"></div>
-      <div style="font-size:9px;color:#ccc">MID (2-4M) — PRESENCE</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <div style="width:6px;height:6px;border-radius:50%;background:#ffaa00"></div>
+      <div style="font-family:system-ui, sans-serif; font-size:10px; color:#888888">MID (2-4M) — PRESENCE</div>
     </div>
-    <div style="display:flex;align-items:center;gap:6px">
-      <div style="width:8px;height:8px;border-radius:50%;background:#ff4400"></div>
-      <div style="font-size:9px;color:#ccc">OUTER (4-6M) — MOTION</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="width:6px;height:6px;border-radius:50%;background:#ff4400"></div>
+      <div style="font-family:system-ui, sans-serif; font-size:10px; color:#888888">OUTER (4-6M) — MOTION</div>
     </div>
   </div>
 
   <!-- BOTTOM RIGHT -->
   <div id="branding">
-    <div>AMBIENT SENSE</div>
-    <div>WIFI CSI HEATMAP</div>
+    <div style="font-family: Georgia, serif; font-size: 14px; font-weight: bold; color: #ffffff; letter-spacing: 0.05em; line-height: 1.2;">SPARS</div>
+    <div style="font-family: system-ui, sans-serif; font-size: 9px; color: #444444; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 2px;">WIFI CSI HEATMAP v1</div>
   </div>
 </div>
 
@@ -395,20 +707,17 @@ function drawGridGuides(){
    COMPASS LABELS
 ═══════════════════════════════════════════════════ */
 function drawCompass(){
-  ctx.font         = 'bold 11px Courier New,monospace';
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
   for(var i=0; i<COMPASS_MAIN.length; i++){
     var angDeg = COMPASS_MAIN[i][0];
     var label  = COMPASS_MAIN[i][1];
-    // Place just outside ring 8 (at ring 8.7)
     var pt = isoPoint(8.85, angDeg);
-    // N and cardinal labels slightly bolder
     var isCard = (label==='N'||label==='S'||label==='E'||label==='W');
-    ctx.fillStyle = isCard ? '#2a6a2a' : '#1a4a1a';
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
     ctx.font = isCard
-      ? 'bold 11px Courier New,monospace'
-      : '9px Courier New,monospace';
+      ? 'bold 11px system-ui, -apple-system, sans-serif'
+      : '9px system-ui, -apple-system, sans-serif';
     ctx.fillText(label, pt.x, pt.y);
   }
   ctx.textAlign    = 'left';
@@ -419,7 +728,7 @@ function drawCompass(){
    RING LABELS
 ═══════════════════════════════════════════════════ */
 function drawRingLabels(){
-  ctx.font         = 'bold 10px Courier New,monospace';
+  ctx.font         = '10px system-ui, -apple-system, sans-serif';
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
   for(var i=0; i<RING_LABELS.length; i++){
@@ -429,10 +738,10 @@ function drawRingLabels(){
     var px = pt.x + 20; 
     var py = pt.y;
     
-    ctx.fillStyle = '#003300';
-    ctx.strokeStyle = '#00ff00';
+    ctx.fillStyle = 'rgba(6,8,16,0.8)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
     ctx.lineWidth = 1;
-    var w = 24, h = 14, r = 7;
+    var w = 26, h = 14, r = 4;
     ctx.beginPath();
     ctx.moveTo(px - w/2 + r, py - h/2);
     ctx.lineTo(px + w/2 - r, py - h/2);
@@ -443,7 +752,7 @@ function drawRingLabels(){
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
     ctx.fillText(text, px, py + 1);
   }
   ctx.textAlign    = 'left';
@@ -461,7 +770,7 @@ function drawCenter(){
   var rOpac = (1 - phase) * 0.8;
   
   ctx.beginPath();
-  ctx.strokeStyle = rgba(0, 212, 255, rOpac.toFixed(2));
+  ctx.strokeStyle = rgba(0, 255, 136, rOpac.toFixed(2));
   ctx.lineWidth = 1.5;
   var first = true;
   for(var a=0; a<=360; a+=10){
@@ -476,18 +785,18 @@ function drawCenter(){
   ctx.closePath();
   ctx.stroke();
 
-  ctx.fillStyle = '#00d4ff';
+  ctx.fillStyle = '#00ff88';
   ctx.fillRect(OX - 7, OY - 4, 14, 8);
   
   ctx.beginPath();
-  ctx.strokeStyle = '#00d4ff';
+  ctx.strokeStyle = '#00ff88';
   ctx.lineWidth = 1.5;
   ctx.moveTo(OX, OY - 4);
   ctx.lineTo(OX, OY - 12);
   ctx.stroke();
 
-  ctx.fillStyle   = '#00d4ff';
-  ctx.font        = 'bold 10px Courier New,monospace';
+  ctx.fillStyle   = '#00ff88';
+  ctx.font        = 'bold 10px system-ui, -apple-system, sans-serif';
   ctx.textAlign   = 'center';
   ctx.textBaseline= 'bottom';
   ctx.fillText('ESP32-S3', OX, OY + 16);
@@ -584,7 +893,7 @@ function render(){
     }
   }
 
-  ctx.fillStyle = '#000000';
+  ctx.fillStyle = '#060810';
   ctx.fillRect(0, 0, W, H);
 
   drawGridGuides();
@@ -712,7 +1021,7 @@ var domBbBr     = document.getElementById('bb-br');
 var domBbSig    = document.getElementById('bb-sig');
 var domConnDot  = document.getElementById('conn-dot');
 var domConnLbl  = document.getElementById('conn-lbl');
-var domDemoBadge= document.getElementById('demo-badge');
+var domStateBadge = document.getElementById('state-badge');
 
 function updateHUD(data){
   var p    = data.presence || 'EMPTY';
@@ -774,21 +1083,25 @@ function updateHUD(data){
 
 function setConnState(st){
   domConnDot.className = '';
+  domStateBadge.className = 'badge-pill';
   if(st === 'live'){
     domConnDot.className    = 'live';
     domConnLbl.textContent  = 'LIVE';
     domConnLbl.style.color  = '#00ff88';
-    domDemoBadge.style.display = 'none';
+    domStateBadge.textContent = 'LIVE';
+    domStateBadge.className = 'badge-pill live';
   } else if(st === 'demo'){
     domConnDot.className    = 'demo';
     domConnLbl.textContent  = 'DEMO';
     domConnLbl.style.color  = '#ffaa00';
-    domDemoBadge.style.display = 'block';
+    domStateBadge.textContent = 'DEMO';
+    domStateBadge.className = 'badge-pill demo';
   } else {
     domConnDot.className    = 'dead';
     domConnLbl.textContent  = 'DISCONNECTED';
     domConnLbl.style.color  = '#555';
-    domDemoBadge.style.display = 'none';
+    domStateBadge.textContent = 'OFFLINE';
+    domStateBadge.className = 'badge-pill dead';
   }
 }
 
