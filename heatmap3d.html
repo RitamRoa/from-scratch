@@ -5,16 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AMBIENT SENSE — WiFi CSI Polar Heatmap</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Share+Tech+Mono&display=swap');
-
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{
   width:100%;
   height:100%;
-  background:#060810;
+  background:#000000;
   overflow:hidden;
-  font-family: 'Outfit', system-ui, -apple-system, sans-serif;
-  color:#e0e6ed;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color:#e8e4d9;
   user-select:none;
 }
 
@@ -43,8 +41,8 @@ html,body{
   left: 0;
   width: 100%;
   height: 48px;
-  background: rgba(6, 8, 16, 0.95);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.95);
+  border-bottom: 1px solid rgba(232, 228, 217, 0.08);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -59,72 +57,102 @@ html,body{
   justify-content: center;
 }
 
+.h-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.h-symbol {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  color: #e8e4d9;
+}
+
 .h-logo {
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   font-weight: 700;
-  font-size: 18px;
-  color: #ffffff;
-  letter-spacing: 0.15em;
+  font-size: 16px;
+  color: #e8e4d9;
+  letter-spacing: 0.1em;
   line-height: 1.1;
 }
 
 .h-sub {
   font-family: system-ui, -apple-system, sans-serif;
   font-size: 9px;
-  color: #666666;
+  color: rgba(232, 228, 217, 0.4);
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  font-weight: 600;
+  font-weight: 300;
   margin-top: 2px;
 }
 
-/* State Badge Pill styling */
-.badge-pill {
-  font-family: system-ui, -apple-system, sans-serif;
+/* State Badge minimal dot + word */
+#state-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#state-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(232, 228, 217, 0.2);
+}
+
+#state-dot.live {
+  background: #e8e4d9;
+}
+
+#state-dot.demo {
+  background: #c8a96e;
+}
+
+#state-dot.dead {
+  background: rgba(232, 228, 217, 0.2);
+}
+
+#state-text {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  padding: 4px 12px;
-  border-radius: 999px;
-  display: inline-block;
+  color: rgba(232, 228, 217, 0.4);
 }
 
-.badge-pill.demo {
-  background: rgba(255, 170, 0, 0.15);
-  border: 1px solid rgba(255, 170, 0, 0.4);
-  color: #ffaa00;
+#state-text.live {
+  color: #e8e4d9;
 }
 
-.badge-pill.live {
-  background: rgba(0, 255, 136, 0.1);
-  border: 1px solid rgba(0, 255, 136, 0.3);
-  color: #00ff88;
+#state-text.demo {
+  color: #c8a96e;
 }
 
-.badge-pill.dead {
-  background: rgba(255, 51, 51, 0.1);
-  border: 1px solid rgba(255, 51, 51, 0.3);
-  color: #ff3333;
+#state-text.dead {
+  color: rgba(232, 228, 217, 0.4);
 }
 
 /* Card layout */
 .card{
   position:absolute;
-  background:rgba(6, 8, 16, 0.85);
-  border:1px solid rgba(255, 255, 255, 0.08);
-  padding:1.2rem;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.3), 0 0 15px rgba(255,255,255,0.02);
+  background:rgba(8, 8, 6, 0.88);
+  border:1px solid rgba(232, 228, 217, 0.1);
+  padding:20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
   pointer-events: auto;
+  border-radius: 0;
 }
 
 .clbl{
   font-family: system-ui, -apple-system, sans-serif;
-  font-size:10px;
-  font-weight: 600;
-  letter-spacing:0.15em;
-  color:#666666;
-  text-transform:uppercase;
+  font-weight: 300;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  font-size: 10px;
+  color: rgba(232, 228, 217, 0.5);
   margin-bottom:10px;
 }
 
@@ -132,35 +160,46 @@ html,body{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  margin-bottom:8px;
 }
 
 .vkey{
   font-family: system-ui, -apple-system, sans-serif;
-  font-size:10px;
-  letter-spacing:0.15em;
-  color:#666666;
+  font-weight: 300;
+  letter-spacing: 0.15em;
   text-transform: uppercase;
+  font-size: 10px;
+  color: rgba(232, 228, 217, 0.5);
 }
 
 .vval{
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size:15px;
-  font-weight:bold;
-  color: #ffffff;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  color: #e8e4d9;
+}
+
+.vsep-line {
+  height: 1px;
+  background: rgba(232, 228, 217, 0.08);
+  margin: 10px 0;
+}
+
+.num {
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
 }
 
 /* Vitals confidence bar */
 #conf-bar-bg{
   width:100%;
   height:2px;
-  background:rgba(255,255,255,0.06);
+  background:rgba(232, 228, 217, 0.08);
   margin-top:8px;
 }
 #conf-bar-fill{
   height:100%;
   width:0%;
-  background:rgba(0, 255, 136, 0.6);
+  background:#e8e4d9;
   transition:width 0.4s ease;
 }
 
@@ -171,13 +210,14 @@ html,body{
   left:50%;
   transform:translateX(-50%);
   width:520px;
-  background:rgba(6, 8, 16, 0.9);
-  border:1px solid rgba(255, 255, 255, 0.06);
+  background:rgba(8, 8, 6, 0.88);
+  border:1px solid rgba(232, 228, 217, 0.1);
   padding:12px 24px;
   display:flex;
   align-items:center;
   justify-content:space-between;
   pointer-events: auto;
+  border-radius: 0;
 }
 
 .bbi{
@@ -189,22 +229,24 @@ html,body{
 
 .bkey{
   font-family: system-ui, -apple-system, sans-serif;
-  font-size:9px;
-  letter-spacing:0.1em;
-  color:#666666;
+  font-weight: 300;
+  letter-spacing: 0.15em;
   text-transform: uppercase;
+  font-size: 10px;
+  color: rgba(232, 228, 217, 0.5);
 }
 
 .bval{
-  font-family: 'Share Tech Mono', monospace;
+  font-family: 'Courier New', monospace;
   font-size:13px;
   font-weight:bold;
+  color: #e8e4d9;
 }
 
 .bsep{
   width:1px;
   height:20px;
-  background:#333333;
+  background:rgba(232, 228, 217, 0.15);
 }
 
 /* Connection info in bottom left */
@@ -224,21 +266,19 @@ html,body{
   width:6px;
   height:6px;
   border-radius: 50%;
-  background:#330000;
+  background:rgba(232, 228, 217, 0.2);
   flex-shrink:0;
 }
 #conn-dot.live{
-  background:#00ff88;
-  box-shadow:0 0 6px #00ff88;
+  background:#e8e4d9;
   animation:blink 1.4s ease-in-out infinite;
 }
 #conn-dot.demo{
-  background:#ffaa00;
-  box-shadow:0 0 5px #ffaa00;
+  background:#c8a96e;
   animation:blink 1.4s ease-in-out infinite;
 }
 #conn-dot.dead{
-  background:#ff3333;
+  background:rgba(232, 228, 217, 0.2);
 }
 
 #conn-lbl {
@@ -246,13 +286,13 @@ html,body{
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.05em;
-  color: #444444;
+  color: rgba(232, 228, 217, 0.4);
 }
 
 #conn-ip{
-  font-family: 'Share Tech Mono', monospace;
+  font-family: 'Courier New', monospace;
   font-size:9px;
-  color:#444444;
+  color:rgba(232, 228, 217, 0.4);
   margin-top:4px;
 }
 
@@ -270,7 +310,7 @@ html,body{
   display:none;
   position:fixed;
   inset:0;
-  background:rgba(6, 8, 16, 0.85);
+  background:rgba(0, 0, 0, 0.9);
   backdrop-filter:blur(8px);
   -webkit-backdrop-filter:blur(8px);
   z-index:9999;
@@ -280,26 +320,27 @@ html,body{
 #ip-ov.show{display:flex}
 
 #ip-box{
-  background:#060810;
-  border:1px solid rgba(255, 255, 255, 0.08);
+  background:rgba(8, 8, 6, 0.95);
+  border:1px solid rgba(232, 228, 217, 0.1);
   padding:2.5rem 2rem;
   width:360px;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 20px rgba(255, 255, 255, 0.02);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
   text-align:center;
+  border-radius: 0;
 }
 
 #ip-box h3{
   font-family: Georgia, serif;
   font-weight: 400;
-  font-size: 2rem;
-  color: #ffffff;
+  font-size: 1.8rem;
+  color: #e8e4d9;
   margin-bottom: 0.5rem;
 }
 
 #ip-box p{
   font-family: system-ui, sans-serif;
   font-size: 13px;
-  color: #666666;
+  color: rgba(232, 228, 217, 0.5);
   margin-bottom: 1.5rem;
   line-height: 1.4;
 }
@@ -307,42 +348,43 @@ html,body{
 #ip-inp{
   width:100%;
   padding:12px;
-  background:rgba(255, 255, 255, 0.02);
-  border:1px solid rgba(255, 255, 255, 0.08);
-  color:#fff;
+  background:rgba(232, 228, 217, 0.03);
+  border:1px solid rgba(232, 228, 217, 0.1);
+  color:#e8e4d9;
   font-size:14px;
-  font-family:'Share Tech Mono', monospace;
+  font-family:'Courier New', monospace;
   outline:none;
   text-align:center;
   margin-bottom:1rem;
   transition:border-color 0.2s;
+  border-radius: 0;
 }
 #ip-inp:focus{
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(232, 228, 217, 0.3);
 }
 
 #ip-btn{
   width:100%;
   padding:12px;
   background:transparent;
-  border:1px solid var(--fg);
-  color:#ffffff;
+  border:1px solid #e8e4d9;
+  color:#e8e4d9;
   font-size:10px;
   letter-spacing:3px;
   text-transform:uppercase;
   cursor:pointer;
   transition:all 0.2s;
   font-family: system-ui, sans-serif;
-  font-weight: 700;
-  border-radius: 999px;
+  font-weight: 600;
+  border-radius: 0;
 }
 #ip-btn:hover{
-  background:rgba(255, 255, 255, 0.08);
+  background:rgba(232, 228, 217, 0.08);
 }
 
 .ip-hint3d{
   font-size:10px;
-  color:#444444;
+  color:rgba(232, 228, 217, 0.3);
   margin-top:12px;
   line-height:1.5;
 }
@@ -356,35 +398,43 @@ html,body{
   <!-- Header Bar -->
   <header id="header-bar">
     <div class="h-left">
-      <div class="h-logo">SPARS</div>
+      <div class="h-title-row">
+        <span class="h-symbol">π</span>
+        <span class="h-logo">SPARS</span>
+      </div>
       <div class="h-sub">WIFI PRESENCE MONITORING</div>
     </div>
     <div class="h-right">
-      <div id="state-badge" class="badge-pill dead">OFFLINE</div>
+      <div id="state-status">
+        <span id="state-dot" class="dead"></span>
+        <span id="state-text" class="dead">OFFLINE</span>
+      </div>
     </div>
   </header>
 
   <!-- TOP LEFT: Presence -->
   <div class="card" style="top:64px;left:16px;width:200px">
     <div class="clbl">Presence</div>
-    <div id="pres-val" style="font-family: Georgia, serif; font-size: 22px; font-weight: bold; margin-bottom: 6px; color: #ffffff;">VACANT</div>
-    <div id="pres-pers" style="font-family: system-ui, sans-serif; font-size: 11px; color: #888888;">0 PERSONS DETECTED</div>
+    <div id="pres-val" style="font-size: 22px; font-weight: 600; margin-bottom: 6px; color: rgba(232,228,217,0.3);">VACANT</div>
+    <div id="pres-pers" style="font-size: 10px; color: rgba(232,228,217,0.4); letter-spacing: 0.05em; font-weight: 300; text-transform: uppercase;"><span class="num">0</span> PERSONS DETECTED</div>
   </div>
 
   <!-- TOP RIGHT: Vitals -->
-  <div class="card" style="top:64px;right:16px;width:200px">
+  <div class="card" style="top:64px;right:16px;width:220px">
     <div class="clbl">Vital Signs</div>
     <div class="vrow">
       <span class="vkey">Breathing</span>
-      <span class="vval" id="vit-br" style="font-family: Georgia, serif; font-weight: bold; color: #ffffff;">-- BPM</span>
+      <span class="vval" id="vit-br" style="color: rgba(232,228,217,0.3);"><span class="num">--</span> BPM</span>
     </div>
+    <div class="vsep-line"></div>
     <div class="vrow">
       <span class="vkey">Heart Rate</span>
-      <span class="vval" style="font-family: Georgia, serif; font-weight: bold; color: #444444;">-- BPM</span>
+      <span class="vval" style="color: rgba(232,228,217,0.3);"><span class="num">—</span> BPM</span>
     </div>
-    <div class="vrow" style="margin-top: 10px;">
+    <div class="vsep-line"></div>
+    <div class="vrow">
       <span class="vkey">Confidence</span>
-      <span class="vval" id="vit-conf" style="font-family: Georgia, serif; font-weight: bold; color: #ffffff;">0%</span>
+      <span class="vval" id="vit-conf" style="color: rgba(232,228,217,0.3);"><span class="num">0</span>%</span>
     </div>
     <div id="conf-bar-bg"><div id="conf-bar-fill"></div></div>
   </div>
@@ -393,25 +443,25 @@ html,body{
   <div id="bar-btm">
     <div class="bbi">
       <span class="bkey">RSSI</span>
-      <span class="bval" id="bb-rssi" style="color:#00ff88">--- dBm</span>
+      <span class="bval" id="bb-rssi"><span class="num">---</span> dBm</span>
     </div>
     <div class="bsep"></div>
     <div class="bbi" style="flex-direction:row;gap:12px">
       <div class="bbi">
-        <span class="bkey">Motion</span>
-        <span class="bval" id="bb-mot" style="color:#ffffff">0.00</span>
+         <span class="bkey">Motion</span>
+         <span class="bval" id="bb-mot"><span class="num">0.00</span></span>
       </div>
       <div id="mot-hist" style="display:flex;align-items:flex-end;gap:3px;height:20px;width:30px"></div>
     </div>
     <div class="bsep"></div>
     <div class="bbi">
       <span class="bkey">BR</span>
-      <span class="bval" id="bb-br" style="color:#ffffff">--</span>
+      <span class="bval" id="bb-br"><span class="num">--</span></span>
     </div>
     <div class="bsep"></div>
     <div class="bbi">
       <span class="bkey">Signal</span>
-      <span class="bval" id="bb-sig" style="color:#00ff88">---</span>
+      <span class="bval" id="bb-sig" style="font-family: system-ui; font-weight: 600;">---</span>
     </div>
   </div>
 
@@ -422,30 +472,30 @@ html,body{
       <span id="conn-lbl">DISCONNECTED</span>
     </div>
     <div id="conn-ip"></div>
-    <div style="font-family: system-ui, sans-serif; font-size: 10px; color: #444444; letter-spacing: 0.05em; margin-top: 6px;">SPARS // ESP32-S3</div>
+    <div style="font-family: system-ui; font-size: 9px; color: rgba(232, 228, 217, 0.3); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 6px;">SPARS // ESP32-S3</div>
   </div>
 
   <!-- ZONE LEGEND -->
   <div id="zone-legend" class="card" style="bottom:70px;right:16px;width:200px;">
     <div class="clbl" style="margin-bottom: 8px;">SENSING ZONES</div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-      <div style="width:6px;height:6px;border-radius:50%;background:#00ff88"></div>
-      <div style="font-family:system-ui, sans-serif; font-size:10px; color:#888888">INNER (0-2M) — VITALS</div>
+      <div style="width:6px;height:6px;border-radius:50%;background:#e8e4d9"></div>
+      <div style="font-family:system-ui; font-size:10px; font-weight: 300; letter-spacing: 0.02em; color:rgba(232,228,217,0.5)">INNER (0-2M) — VITALS</div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-      <div style="width:6px;height:6px;border-radius:50%;background:#ffaa00"></div>
-      <div style="font-family:system-ui, sans-serif; font-size:10px; color:#888888">MID (2-4M) — PRESENCE</div>
+      <div style="width:6px;height:6px;border-radius:50%;background:#c8a96e"></div>
+      <div style="font-family:system-ui; font-size:10px; font-weight: 300; letter-spacing: 0.02em; color:rgba(232,228,217,0.5)">MID (2-4M) — PRESENCE</div>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
-      <div style="width:6px;height:6px;border-radius:50%;background:#ff4400"></div>
-      <div style="font-family:system-ui, sans-serif; font-size:10px; color:#888888">OUTER (4-6M) — MOTION</div>
+      <div style="width:6px;height:6px;border-radius:50%;background:rgba(232,228,217,0.3)"></div>
+      <div style="font-family:system-ui; font-size:10px; font-weight: 300; letter-spacing: 0.02em; color:rgba(232,228,217,0.5)">OUTER (4-6M) — MOTION</div>
     </div>
   </div>
 
   <!-- BOTTOM RIGHT -->
   <div id="branding">
-    <div style="font-family: Georgia, serif; font-size: 14px; font-weight: bold; color: #ffffff; letter-spacing: 0.05em; line-height: 1.2;">SPARS</div>
-    <div style="font-family: system-ui, sans-serif; font-size: 9px; color: #444444; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 2px;">WIFI CSI HEATMAP v1</div>
+    <div style="font-family: system-ui; font-size: 11px; font-weight: 600; color: #e8e4d9; letter-spacing: 0.1em; line-height: 1.2;">SPARS</div>
+    <div style="font-family: system-ui; font-size: 8px; color: rgba(232,228,217,0.4); letter-spacing: 0.15em; text-transform: uppercase; margin-top: 2px;">WAVES SAVES LIFE</div>
   </div>
 </div>
 
@@ -675,7 +725,7 @@ function drawCell(ri, si, heat){
 function drawGridGuides(){
   for(var ring=1; ring<=RINGS; ring++){
     var isMain = (ring % 2 === 0);
-    ctx.strokeStyle = isMain ? 'rgba(0,100,0,0.4)' : 'rgba(0,32,10,0.32)';
+    ctx.strokeStyle = isMain ? 'rgba(232, 228, 217, 0.15)' : 'rgba(232, 228, 217, 0.08)';
     ctx.lineWidth = isMain ? 1 : 0.5;
     if(isMain) ctx.setLineDash([4, 6]);
     else ctx.setLineDash([]);
@@ -692,7 +742,7 @@ function drawGridGuides(){
   }
   ctx.setLineDash([]);
   // Radial segment dividers
-  ctx.strokeStyle = 'rgba(0,40,12,0.22)';
+  ctx.strokeStyle = 'rgba(232, 228, 217, 0.06)';
   ctx.lineWidth   = 0.4;
   for(var s=0; s<SEGS; s++){
     var outer = isoPoint(RINGS, s * SEG_DEG);
@@ -714,7 +764,7 @@ function drawCompass(){
     var label  = COMPASS_MAIN[i][1];
     var pt = isoPoint(8.85, angDeg);
     var isCard = (label==='N'||label==='S'||label==='E'||label==='W');
-    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.fillStyle = 'rgba(232, 228, 217, 0.4)';
     ctx.font = isCard
       ? 'bold 11px system-ui, -apple-system, sans-serif'
       : '9px system-ui, -apple-system, sans-serif';
@@ -738,21 +788,16 @@ function drawRingLabels(){
     var px = pt.x + 20; 
     var py = pt.y;
     
-    ctx.fillStyle = 'rgba(6,8,16,0.8)';
-    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillStyle = 'rgba(8, 8, 6, 0.88)';
+    ctx.strokeStyle = 'rgba(232, 228, 217, 0.12)';
     ctx.lineWidth = 1;
-    var w = 26, h = 14, r = 4;
+    var w = 26, h = 14;
     ctx.beginPath();
-    ctx.moveTo(px - w/2 + r, py - h/2);
-    ctx.lineTo(px + w/2 - r, py - h/2);
-    ctx.arcTo(px + w/2, py - h/2, px + w/2, py + h/2, r);
-    ctx.lineTo(px + w/2 - r, py + h/2);
-    ctx.arcTo(px - w/2, py + h/2, px - w/2, py - h/2, r);
-    ctx.closePath();
+    ctx.rect(px - w/2, py - h/2, w, h); // rect for sharp corners
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fillStyle = 'rgba(232, 228, 217, 0.5)';
     ctx.fillText(text, px, py + 1);
   }
   ctx.textAlign    = 'left';
@@ -770,7 +815,7 @@ function drawCenter(){
   var rOpac = (1 - phase) * 0.8;
   
   ctx.beginPath();
-  ctx.strokeStyle = rgba(0, 255, 136, rOpac.toFixed(2));
+  ctx.strokeStyle = rgba(232, 228, 217, rOpac.toFixed(2));
   ctx.lineWidth = 1.5;
   var first = true;
   for(var a=0; a<=360; a+=10){
@@ -785,18 +830,18 @@ function drawCenter(){
   ctx.closePath();
   ctx.stroke();
 
-  ctx.fillStyle = '#00ff88';
+  ctx.fillStyle = '#e8e4d9';
   ctx.fillRect(OX - 7, OY - 4, 14, 8);
   
   ctx.beginPath();
-  ctx.strokeStyle = '#00ff88';
+  ctx.strokeStyle = '#e8e4d9';
   ctx.lineWidth = 1.5;
   ctx.moveTo(OX, OY - 4);
   ctx.lineTo(OX, OY - 12);
   ctx.stroke();
 
-  ctx.fillStyle   = '#00ff88';
-  ctx.font        = 'bold 10px system-ui, -apple-system, sans-serif';
+  ctx.fillStyle   = '#e8e4d9';
+  ctx.font        = '10px system-ui, -apple-system, sans-serif';
   ctx.textAlign   = 'center';
   ctx.textBaseline= 'bottom';
   ctx.fillText('ESP32-S3', OX, OY + 16);
@@ -855,8 +900,6 @@ function drawBeaconAt(ri, si, heat, colorHex, phase){
 
   var hy = fy - 20; 
   
-  ctx.shadowColor = colorHex;
-  ctx.shadowBlur = 8;
   ctx.strokeStyle = colorHex;
   ctx.lineWidth = 2;
   ctx.lineCap = 'round';
@@ -893,7 +936,7 @@ function render(){
     }
   }
 
-  ctx.fillStyle = '#060810';
+  ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, W, H);
 
   drawGridGuides();
@@ -926,7 +969,7 @@ function render(){
   if(pres === 'SINGLE' || pres === 'MULTI'){
     var best1 = findHottest();
     if(best1.heat >= 0.3){
-      drawBeaconAt(best1.ri, best1.si, best1.heat, '#00ff88', 0);
+      drawBeaconAt(best1.ri, best1.si, best1.heat, '#e8e4d9', 0);
     }
     if(pres === 'MULTI'){
       var best2h=-1, best2r=0, best2s=0;
@@ -937,7 +980,7 @@ function render(){
         }
       }
       if(best2h >= 0.3){
-        drawBeaconAt(best2r, best2s, best2h, '#ffaa00', Math.PI);
+        drawBeaconAt(best2r, best2s, best2h, '#c8a96e', Math.PI);
       }
     }
   }
@@ -1021,7 +1064,8 @@ var domBbBr     = document.getElementById('bb-br');
 var domBbSig    = document.getElementById('bb-sig');
 var domConnDot  = document.getElementById('conn-dot');
 var domConnLbl  = document.getElementById('conn-lbl');
-var domStateBadge = document.getElementById('state-badge');
+var domStateDot  = document.getElementById('state-dot');
+var domStateText = document.getElementById('state-text');
 
 function updateHUD(data){
   var p    = data.presence || 'EMPTY';
@@ -1032,39 +1076,44 @@ function updateHUD(data){
 
   if(p === 'EMPTY'){
     domPresVal.textContent = 'VACANT';
-    domPresVal.style.color = '#444';
+    domPresVal.style.color = 'rgba(232, 228, 217, 0.3)';
   } else if(p === 'SINGLE'){
     domPresVal.textContent = 'OCCUPIED';
-    domPresVal.style.color = '#00ff88';
+    domPresVal.style.color = '#e8e4d9';
   } else {
     domPresVal.textContent = 'MULTIPLE';
-    domPresVal.style.color = '#ffaa00';
+    domPresVal.style.color = '#c8a96e';
   }
-  domPresPers.textContent = pc + ' PERSON' + (pc!==1?'S':'') + ' DETECTED';
+  domPresPers.innerHTML = '<span class="num">' + pc + '</span> PERSON' + (pc!==1?'S':'') + ' DETECTED';
 
   if(bpm > 0 && p === 'SINGLE'){
-    domVitBr.textContent = bpm + ' BPM';
-    domVitBr.style.color = (bpm>=12 && bpm<=20) ? '#00ff88' : '#ffaa00';
+    domVitBr.innerHTML = '<span class="num">' + bpm + '</span> BPM';
+    domVitBr.style.color = '#e8e4d9';
   } else {
-    domVitBr.textContent = '-- BPM';
-    domVitBr.style.color = '#444';
+    domVitBr.innerHTML = '<span class="num">--</span> BPM';
+    domVitBr.style.color = 'rgba(232, 228, 217, 0.3)';
   }
   var conf = (p !== 'EMPTY') ? Math.min(85 + ms*8, 99) : 0;
-  domVitConf.textContent  = Math.round(conf) + '%';
+  domVitConf.innerHTML  = '<span class="num">' + Math.round(conf) + '</span>%';
   domConfFill.style.width = conf + '%';
+  if(p === 'EMPTY'){
+    domVitConf.style.color = 'rgba(232, 228, 217, 0.3)';
+  } else {
+    domVitConf.style.color = '#e8e4d9';
+  }
 
   var rc;
   if(rssi > -45){
-    rc='#00ff88'; domBbSig.textContent='STRONG'; domBbSig.style.color='#00ff88';
+    rc='#e8e4d9'; domBbSig.textContent='STRONG'; domBbSig.style.color='#e8e4d9';
   } else if(rssi > -65){
-    rc='#ffaa00'; domBbSig.textContent='MED';    domBbSig.style.color='#ffaa00';
+    rc='#c8a96e'; domBbSig.textContent='MED';    domBbSig.style.color='#c8a96e';
   } else {
-    rc='#ff2200'; domBbSig.textContent='WEAK';   domBbSig.style.color='#ff2200';
+    rc='rgba(232, 228, 217, 0.3)'; domBbSig.textContent='WEAK';   domBbSig.style.color='rgba(232, 228, 217, 0.3)';
   }
-  domBbRssi.textContent  = rssi + ' dBm';
+  domBbRssi.innerHTML  = '<span class="num">' + rssi + '</span> dBm';
   domBbRssi.style.color  = rc;
-  domBbMot.textContent   = ms.toFixed(2);
-  domBbMot.style.color   = ms<2?'#ffffff':ms<5?'#ffaa00':'#ff4400';
+  domBbMot.innerHTML   = '<span class="num">' + ms.toFixed(2) + '</span>';
+  domBbMot.style.color   = ms<2?'#e8e4d9':ms<5?'#c8a96e':'rgba(232, 228, 217, 0.4)';
   
   motionHist.shift();
   motionHist.push(ms);
@@ -1072,36 +1121,40 @@ function updateHUD(data){
   for(var i=0; i<5; i++){
     var v = motionHist[i];
     var h = Math.min(20, Math.max(2, v * 4)); 
-    var c = v<2 ? '#00ff88' : v<5 ? '#ffaa00' : '#ff4400';
-    motHtml += '<div style="width:4px;height:'+h+'px;background:'+c+'; border-radius:1px"></div>';
+    var c = v<2 ? '#e8e4d9' : v<5 ? '#c8a96e' : 'rgba(232, 228, 217, 0.3)';
+    motHtml += '<div style="width:4px;height:'+h+'px;background:'+c+'; border-radius:0px"></div>';
   }
   document.getElementById('mot-hist').innerHTML = motHtml;
-  domBbBr.textContent    = bpm>0 ? bpm+' BPM' : '--';
+  domBbBr.innerHTML    = bpm>0 ? '<span class="num">' + bpm + '</span> BPM' : '<span class="num">--</span>';
 
   buildHeatTarget(data);
 }
 
 function setConnState(st){
   domConnDot.className = '';
-  domStateBadge.className = 'badge-pill';
+  domStateDot.className = '';
+  domStateText.className = '';
   if(st === 'live'){
     domConnDot.className    = 'live';
     domConnLbl.textContent  = 'LIVE';
-    domConnLbl.style.color  = '#00ff88';
-    domStateBadge.textContent = 'LIVE';
-    domStateBadge.className = 'badge-pill live';
+    domConnLbl.style.color  = '#e8e4d9';
+    domStateDot.className = 'live';
+    domStateText.textContent = 'LIVE';
+    domStateText.className = 'live';
   } else if(st === 'demo'){
     domConnDot.className    = 'demo';
     domConnLbl.textContent  = 'DEMO';
-    domConnLbl.style.color  = '#ffaa00';
-    domStateBadge.textContent = 'DEMO';
-    domStateBadge.className = 'badge-pill demo';
+    domConnLbl.style.color  = '#c8a96e';
+    domStateDot.className = 'demo';
+    domStateText.textContent = 'DEMO';
+    domStateText.className = 'demo';
   } else {
     domConnDot.className    = 'dead';
     domConnLbl.textContent  = 'DISCONNECTED';
-    domConnLbl.style.color  = '#555';
-    domStateBadge.textContent = 'OFFLINE';
-    domStateBadge.className = 'badge-pill dead';
+    domConnLbl.style.color  = 'rgba(232, 228, 217, 0.3)';
+    domStateDot.className = 'dead';
+    domStateText.textContent = 'OFFLINE';
+    domStateText.className = 'dead';
   }
 }
 
@@ -1268,7 +1321,7 @@ if(document.readyState === 'loading'){
 <!-- IP Prompt Overlay -->
 <div id="ip-ov">
   <div id="ip-box">
-    <h3>⚡ Connect to ESP32</h3>
+    <h3>π Connect to ESP32</h3>
     <p>Enter your ESP32's IP address.<br>Find it in the serial monitor after boot.</p>
     <input id="ip-inp" type="text" placeholder="e.g. 10.22.76.83" spellcheck="false" autocomplete="off">
     <button id="ip-btn">Connect</button>
