@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPARS - Room Monitor</title>
+<style>
+/* ── RESET & BASE ─────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0a0f14;
+  --cyan: #00d4ff;
+  --green: #00ff88;
+  --amber: #ffaa00;
+  --red: #ff4444;
+  --card-bg: rgba(10, 20, 30, 0.85);
+  --border: rgba(0, 212, 255, 0.2);
+  --text: #ffffff;
+  --muted: rgba(255, 255, 255, 0.45);
+  --font-ui: 'Segoe UI', system-ui, sans-serif;
+  --font-num: 'Courier New', Courier, monospace;
+}
+
+html, body {
+  width: 100%; height: 100%;
+  background: var(--bg);
+  background: radial-gradient(circle at center, #111a22 0%, #0a0f14 80%);
+  color: var(--text);
+  font-family: var(--font-ui);
+  overflow: hidden;
+  user-select: none;
+}
+
+.num { font-family: var(--font-num); }
+
+/* ── CENTER VISUAL: ISOMETRIC HEATMAP ────────────── */
+#canvas-container {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 10;
+}
+
+#heatmap-canvas {
+  width: 100%; height: 100%;
+  display: block;
+  cursor: grab;
+}
+
+#heatmap-canvas:active {
+  cursor: grabbing;
+}
+
+/* ── TOP BAR ─────────────────────────────────────── */
+#top-bar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.8), rgba(0,0,0,0));
+  z-index: 100;
+  pointer-events: none;
+}
+#top-bar > * { pointer-events: auto; }
+#top-left { display: flex; align-items: center; gap: 8px; }
+#logo-icon { color: var(--cyan); font-size: 18px; font-weight: bold; }
+#logo-text-box { display: flex; flex-direction: column; }
+#logo-main { font-size: 14px; font-weight: 600; letter-spacing: 0.5px; }
+#logo-sub { font-size: 8px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+
+#top-right { display: flex; align-items: center; gap: 12px; }
+.pill-badge {
+  font-size: 10px; font-weight: bold;
+  padding: 3px 8px;
+  display: none;
+  align-items: center; gap: 4px;
+  border-radius: 12px;
+}
+.pill-badge.visible { display: flex; }
+#badge-demo { color: var(--amber); border: 1px solid rgba(255,170,0,0.3); background: rgba(255,170,0,0.1); }
+#badge-live { color: var(--green); border: 1px solid rgba(0,255,136,0.3); background: rgba(0,255,136,0.1); }
+#live-ip { font-size: 10px; color: var(--muted); }
+
+/* ── BOTTOM BAR ──────────────────────────────────── */
+#bottom-bar {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  z-index: 100;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.bb-item { display: flex; align-items: center; gap: 6px; }
+.bb-dot { width: 6px; height: 6px; border-radius: 50%; background: #333; }
+.bb-dot.active { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.bb-sep { color: rgba(255,255,255,0.1); }
+
+/* ── HUD CARDS ───────────────────────────────────── */
+.card {
+  position: absolute;
+  top: 50%; transform: translateY(-50%);
+  width: 190px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  padding: 14px;
+  z-index: 100;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+#card-left { left: 20px; }
+#card-right { right: 20px; }
+
+.card-header {
+  font-size: 10px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+
+.row {
+  margin-bottom: 10px;
+}
+.row-header {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 9px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+.row-icon { font-size: 10px; }
+.val-large {
+  font-size: 24px; font-weight: bold;
+}
+.val-unit { font-size: 10px; color: var(--muted); margin-left: 2px; }
+.val-sub { font-size: 11px; color: var(--muted); }
+.separator {
+  height: 1px; background: #1a2a3a;
+  margin: 10px 0;
+}
+
+/* Specific elements */
+.icon-red { color: #ff4466; }
+.icon-cyan { color: var(--cyan); }
+.icon-grey { color: var(--muted); }
+
+.prog-bar-bg { width: 100%; height: 2px; background: rgba(255,255,255,0.1); margin-top: 4px; }
+.prog-bar-fill { height: 100%; width: 0%; transition: width 0.3s; }
+.prog-green { background: var(--green); }
+.prog-cyan { background: var(--cyan); }
+
+.flex-between { display: flex; justify-content: space-between; align-items: baseline; }
+.val-right { font-size: 14px; font-weight: bold; }
+.val-right-small { font-size: 12px; }
+
+/* Persons dots */
+#persons-dots {
+  font-size: 8px; color: var(--muted); letter-spacing: 1px; margin-top: 2px;
+  text-align: right;
+}
+.dot-filled { color: var(--cyan); }
+
+/* Presence Box */
+#presence-box {
+  width: 100%; padding: 8px 0;
+  text-align: center;
+  font-size: 12px; font-weight: bold; letter-spacing: 2px;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+#presence-box.absent {
+  background: rgba(255,255,255,0.05); color: var(--muted);
+}
+#presence-box.present {
+  border-color: var(--cyan); color: var(--cyan);
+  background: rgba(0,212,255,0.05);
+  box-shadow: 0 0 8px rgba(0,212,255,0.2) inset;
+}
+#presence-box.multiple {
+  border-color: var(--amber); color: var(--amber);
+  background: rgba(255,170,0,0.05);
+  box-shadow: 0 0 8px rgba(255,170,0,0.2) inset;
+}
+
+/* Helper overlays */
+#controls-hint {
+  position: absolute; bottom: 50px; right: 20px;
+  font-size: 10px; color: var(--muted); pointer-events: none;
+  z-index: 10; background: rgba(0,0,0,0.4); padding: 4px 8px; border-radius: 4px;
+}
+
+/* ── IP Prompt Overlay ─────────── */
+#ip-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 9999;
+  align-items: center; justify-content: center;
+}
+#ip-overlay.show { display: flex; }
+#ip-box {
+  background: #0d1a26;
+  border: 1px solid rgba(0,212,255,0.35);
+  border-radius: 6px;
+  padding: 28px 32px;
+  width: 320px;
+  box-shadow: 0 0 40px rgba(0,212,255,0.1);
+  text-align: center;
+}
+#ip-box h3 {
+  font-size: 13px; font-weight: 600;
+  color: var(--cyan); letter-spacing: 1px;
+  text-transform: uppercase; margin-bottom: 6px;
+}
+#ip-box p {
+  font-size: 10px; color: var(--muted);
+  margin-bottom: 18px; line-height: 1.6;
+}
+#ip-input {
+  width: 100%; padding: 9px 12px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(0,212,255,0.3);
+  border-radius: 4px;
+  color: #fff; font-size: 13px;
+  font-family: 'Courier New', monospace;
+  outline: none; text-align: center;
+  margin-bottom: 14px;
+  transition: border-color 0.2s;
+}
+#ip-input:focus { border-color: var(--cyan); }
+#ip-connect {
+  width: 100%; padding: 9px;
+  background: rgba(0,212,255,0.15);
+  border: 1px solid rgba(0,212,255,0.4);
+  border-radius: 4px;
+  color: var(--cyan); font-size: 12px;
+  font-weight: bold; letter-spacing: 1px;
+  text-transform: uppercase; cursor: pointer;
+  transition: background 0.2s;
+}
+#ip-connect:hover { background: rgba(0,212,255,0.25); }
+.ip-hint {
+  font-size: 9px; color: var(--muted);
+  margin-top: 10px; line-height: 1.5;
+}
+
+</style>
+</head>
+<body>
+
+<!-- VISUAL -->
+<div id="canvas-container">
+  <canvas id="heatmap-canvas"></canvas>
+  <div id="controls-hint">Left Click: Rotate | Right Click: Pan | Scroll: Zoom</div>
+</div>
+
+<!-- TOP BAR -->
+<div id="top-bar">
+  <div id="top-left">
+    <div id="logo-icon">π</div>
+    <div id="logo-text-box">
+      <div id="logo-main">SPARS</div>
+      <div id="logo-sub">WIFI PRESENCE MONITORING</div>
+    </div>
+  </div>
+  <div id="top-right">
+    <div id="badge-demo" class="pill-badge">● DEMO</div>
+    <div id="badge-live" class="pill-badge">● LIVE</div>
+    <div id="live-ip"></div>
+    <div style="color:var(--muted); font-size:14px; margin-left:8px; cursor:default;">⚙</div>
+  </div>
+</div>
+
+<!-- BOTTOM BAR -->
+<div id="bottom-bar">
+  <div class="bb-item"><span>Human Presence</span><div id="bb-pres" class="bb-dot"></div></div>
+  <span class="bb-sep">|</span>
+  <div class="bb-item"><span>Vital Signs</span><div id="bb-vit" class="bb-dot"></div></div>
+  <span class="bb-sep">|</span>
+  <div class="bb-item"><span>Signal Quality</span><div id="bb-sig" class="bb-dot"></div></div>
+</div>
+
+<!-- LEFT CARD: VITALS -->
+<div class="card" id="card-left">
+  <div class="card-header">VITAL SIGNS</div>
+  
+  <div class="row">
+    <div class="row-header"><span class="row-icon icon-red">❤</span>HEART RATE</div>
+    <div id="hr-val" class="val-large num">--<span class="val-unit">BPM</span></div>
+  </div>
+  
+  <div class="separator"></div>
+  
+  <div class="row">
+    <div class="row-header"><span class="row-icon icon-cyan">✦</span>RESPIRATION</div>
+    <div id="br-val" class="val-large num">--<span class="val-unit">RPM</span></div>
+  </div>
+
+  <div class="separator"></div>
+
+  <div class="row">
+    <div class="row-header"><span class="row-icon icon-grey">👥</span>CONFIDENCE</div>
+    <div id="conf-val" class="val-large num" style="font-size:18px; color:var(--green);">0%</div>
+    <div class="prog-bar-bg"><div id="conf-bar" class="prog-bar-fill prog-green"></div></div>
+  </div>
+</div>
+
+<!-- RIGHT CARD: SIGNAL -->
+<div class="card" id="card-right">
+  <div class="card-header">WIFI SIGNAL</div>
+  
+  <div class="row flex-between">
+    <div class="row-header" style="margin:0;">RSSI</div>
+    <div id="rssi-val" class="val-right num">--- dBm</div>
+  </div>
+
+  <div class="row flex-between">
+    <div class="row-header" style="margin:0;">VARIANCE</div>
+    <div id="var-val" class="val-right num" style="color:var(--cyan);">0.00</div>
+  </div>
+
+  <div class="row flex-between">
+    <div class="row-header" style="margin:0;">MOTION</div>
+    <div id="mot-val" class="val-right-small num" style="color:var(--text);">0.000</div>
+  </div>
+  <div class="prog-bar-bg" style="margin-bottom:10px;"><div id="mot-bar" class="prog-bar-fill prog-cyan"></div></div>
+
+  <div class="row flex-between">
+    <div class="row-header" style="margin:0;">PERSONS</div>
+    <div style="text-align:right;">
+      <div id="per-val" class="val-right num" style="color:var(--cyan);">0</div>
+      <div id="persons-dots">○○○○○○○</div>
+    </div>
+  </div>
+
+  <div class="separator"></div>
+
+  <div id="presence-box" class="absent">ABSENT</div>
+</div>
+
+<script>
+/* ================================================================
+   CONFIG & DOM REFS
+================================================================ */
+const RECONNECT_MS = 3000;
+const DEMO_FALLBACK_MS = 5000;
+
+// ── Dynamic IP Resolution ─────────────────────────────────────────
+// Priority: 1) served from ESP32 (location.hostname is an IP)
+//           2) ?ip=x.x.x.x URL parameter
+//           3) inline prompt overlay (no hardcoded fallback)
+function resolveEspIp() {
+  const host = location.hostname;
+  if (host && host !== 'localhost' && host !== '127.0.0.1' && host !== '') {
+    return host; // Page is served directly by ESP32
+  }
+  const param = new URLSearchParams(location.search).get('ip');
+  if (param) return param.trim();
+  return null; // Will trigger the IP prompt overlay
+}
+
+let _resolvedIp = resolveEspIp();
+let WS_URL = _resolvedIp ? `ws://${_resolvedIp}/ws` : null;
+
+// Expanded grid to fill the whole page
+const COLS = 32;
+const ROWS = 32;
+const NUM_CELLS = COLS * ROWS;
+
+const canvas = document.getElementById('heatmap-canvas');
+const ctx = canvas.getContext('2d');
+
+const badgeDemo = document.getElementById('badge-demo');
+const badgeLive = document.getElementById('badge-live');
+const liveIp = document.getElementById('live-ip');
+
+const bbPres = document.getElementById('bb-pres');
+const bbVit = document.getElementById('bb-vit');
+const bbSig = document.getElementById('bb-sig');
+
+const hrVal = document.getElementById('hr-val');
+const brVal = document.getElementById('br-val');
+const confVal = document.getElementById('conf-val');
+const confBar = document.getElementById('conf-bar');
+
+const rssiVal = document.getElementById('rssi-val');
+const varVal = document.getElementById('var-val');
+const motVal = document.getElementById('mot-val');
+const motBar = document.getElementById('mot-bar');
+const perVal = document.getElementById('per-val');
+const perDots = document.getElementById('persons-dots');
+const presBox = document.getElementById('presence-box');
+
+/* ================================================================
+   STATE
+================================================================ */
+let ws = null;
+let isDemo = false;
+let isConnected = false;
+let lastMsgTime = 0;
+let demoTimer = null, reconnectTimer = null, fallbackTimer = null;
+
+let lastData = { presence:'EMPTY', person_count:0, motion_score:0, br_bpm:0, rssi:-60, subcarriers:[] };
+
+let cellTargets = new Array(NUM_CELLS).fill(0);
+let cellValues = new Array(NUM_CELLS).fill(0);
+
+let hotzone1 = { c: 16, r: 16 };
+let hotzone2 = { c: 8, r: 8 };
+let tgt1 = { c: 16, r: 16 };
+let tgt2 = { c: 8, r: 8 };
+
+/* Full 3D Camera State */
+let camYaw = Math.PI / 4;   // 45 degrees
+let camPitch = Math.PI / 6; // 30 degrees
+let panX = 0, panY = 0;
+let scale = 22; // Adjusted scale for larger grid to fit on screen
+
+let isDragging = false;
+let dragMode = 0; // 1 = rotate, 2 = pan
+let lastMouseX = 0, lastMouseY = 0;
+
+/* Demo specific state */
+let demoTick = 0;
+let demoPhaseTimer = 0;
+const DEMO_SEQ = [
+  { p: 'EMPTY', t: 80 },
+  { p: 'SINGLE', t: 150 },
+  { p: 'MULTI', t: 60 }
+];
+let demoSeqIdx = 0;
+let demoHr = 71;
+
+/* ================================================================
+   CANVAS SETUP & INTERACTION
+================================================================ */
+let W = 0, H = 0;
+function resizeCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', resizeCanvas);
+setTimeout(resizeCanvas, 100);
+
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+canvas.addEventListener('mousedown', (e) => {
+  isDragging = true;
+  dragMode = (e.button === 2) ? 2 : 1; // right click = 2, left click = 1
+  lastMouseX = e.clientX;
+  lastMouseY = e.clientY;
+});
+window.addEventListener('mouseup', () => { isDragging = false; });
+
+canvas.addEventListener('mousemove', (e) => {
+  if (!isDragging) return;
+  let dx = e.clientX - lastMouseX;
+  let dy = e.clientY - lastMouseY;
+  
+  if (dragMode === 1) {
+    camYaw -= dx * 0.01;
+    camPitch += dy * 0.01;
+    if (camPitch < 0.05) camPitch = 0.05;
+    if (camPitch > Math.PI/2 - 0.05) camPitch = Math.PI/2 - 0.05;
+  } else if (dragMode === 2) {
+    panX += dx;
+    panY += dy;
+  }
+  lastMouseX = e.clientX;
+  lastMouseY = e.clientY;
+});
+
+canvas.addEventListener('wheel', (e) => {
+  scale -= e.deltaY * 0.05;
+  if (scale < 5) scale = 5;
+  if (scale > 150) scale = 150;
+});
+
+canvas.addEventListener('touchstart', (e) => {
+  if (e.touches.length === 1) {
+    dragMode = 1;
+    lastMouseX = e.touches[0].clientX; lastMouseY = e.touches[0].clientY;
+  } else if (e.touches.length === 2) {
+    dragMode = 2;
+    lastMouseX = e.touches[0].clientX; lastMouseY = e.touches[0].clientY;
+  }
+  isDragging = true;
+}, {passive: false});
+
+canvas.addEventListener('touchmove', (e) => {
+  if (!isDragging) return;
+  e.preventDefault();
+  let dx = e.touches[0].clientX - lastMouseX;
+  let dy = e.touches[0].clientY - lastMouseY;
+  if (dragMode === 1) {
+    camYaw -= dx * 0.01; camPitch += dy * 0.01;
+    if (camPitch < 0.05) camPitch = 0.05; if (camPitch > Math.PI/2 - 0.05) camPitch = Math.PI/2 - 0.05;
+  } else if (dragMode === 2) {
+    panX += dx; panY += dy;
+  }
+  lastMouseX = e.touches[0].clientX; lastMouseY = e.touches[0].clientY;
+}, {passive: false});
+
+window.addEventListener('touchend', () => { isDragging = false; });
+
+/* ================================================================
+   3D MATH & RENDER ENGINE
+================================================================ */
+function project(px, py, pz) {
+  let rx = px * Math.cos(camYaw) - py * Math.sin(camYaw);
+  let ry = px * Math.sin(camYaw) + py * Math.cos(camYaw);
+  let rry = ry * Math.cos(camPitch) - pz * Math.sin(camPitch);
+  let rrz = ry * Math.sin(camPitch) + pz * Math.cos(camPitch);
+  
+  return {
+    x: rx * scale,
+    y: rry * scale,
+    z: rrz
+  };
+}
+
+function getBaseColor(v, isEsp) {
+  if (isEsp) return [0, 212, 255];
+  
+  let r, g, b;
+  if (v <= 0.1) { r=6; g=28; b=16; }
+  else if (v <= 0.3) { let t = (v-0.1)/0.2; r=6+t*8; g=28+t*64; b=16+t*16; }
+  else if (v <= 0.5) { let t = (v-0.3)/0.2; r=14+t*216; g=92+t*61; b=32-t*32; }
+  else if (v <= 0.7) { let t = (v-0.5)/0.2; r=230+t*25; g=153-t*85; b=0; }
+  else { let t = Math.min(1, (v-0.7)/0.3); r=255; g=68-t*68; b=0; }
+  return [Math.round(r), Math.round(g), Math.round(b)];
+}
+
+function updateHeatmapTargets(data) {
+  const p = data.presence;
+  const rssi = data.rssi || -60;
+  
+  // Base noise
+  for (let i = 0; i < NUM_CELLS; i++) cellTargets[i] = 0.0 + Math.random()*0.05;
+
+  if (p === 'EMPTY') return;
+
+  let targetRow = 8; // Far
+  if (rssi > -40) targetRow = 24; // Near ESP
+  else if (rssi > -55) targetRow = 16; // Mid
+
+  if (p === 'SINGLE') {
+    tgt1.r = targetRow;
+    tgt1.c = 16 + Math.sin(Date.now()*0.0005) * 6;
+    addHotzone(hotzone1.c, hotzone1.r);
+  } else if (p === 'MULTI') {
+    tgt1.r = targetRow;
+    tgt1.c = 8;
+    tgt2.r = Math.max(2, targetRow - 6);
+    tgt2.c = 24;
+    addHotzone(hotzone1.c, hotzone1.r);
+    addHotzone(hotzone2.c, hotzone2.r);
+  }
+}
+
+function addHotzone(cx, cy) {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      let d = Math.abs(c - cx) + Math.abs(r - cy);
+      let v = 0;
+      if (d < 1.0) v = 1.0;
+      else if (d < 2.5) v = 0.75;
+      else if (d < 4.0) v = 0.45;
+      else if (d < 6.0) v = 0.15;
+      
+      if (v > cellTargets[r*COLS + c]) {
+        cellTargets[r*COLS + c] = v;
+      }
+    }
+  }
+}
+
+function drawCube(c, r, heat, isEsp) {
+  let cx = c - COLS/2;
+  let cy = r - ROWS/2;
+  let h = isEsp ? 0.3 : heat * 2.0; 
+  if (h < 0.05) h = 0.05; // tiny base height
+  
+  const s = 0.45; 
+  
+  let v3d = [
+    {x: cx-s, y: cy-s, z: 0}, {x: cx+s, y: cy-s, z: 0}, 
+    {x: cx+s, y: cy+s, z: 0}, {x: cx-s, y: cy+s, z: 0},
+    {x: cx-s, y: cy-s, z: h}, {x: cx+s, y: cy-s, z: h}, 
+    {x: cx+s, y: cy+s, z: h}, {x: cx-s, y: cy+s, z: h}
+  ];
+
+  let v = v3d.map(p => project(p.x, p.y, p.z));
+
+  let originX = W/2 + panX;
+  let originY = H/2 + panY;
+  for(let p of v) { p.x += originX; p.y += originY; }
+
+  let baseColorRGB = getBaseColor(heat, isEsp);
+  
+  let faces = [
+    { pts: [v[4], v[5], v[6], v[7]], mult: 1.0 }, // Top
+    { pts: [v[3], v[2], v[1], v[0]], mult: 0.3 }, // Bottom
+    { pts: [v[1], v[2], v[6], v[5]], mult: 0.6 }, // Right
+    { pts: [v[3], v[0], v[4], v[7]], mult: 0.4 }, // Left
+    { pts: [v[2], v[3], v[7], v[6]], mult: 0.8 }, // Front
+    { pts: [v[0], v[1], v[5], v[4]], mult: 0.5 }  // Back
+  ];
+
+  for (let f of faces) {
+    let dx1 = f.pts[1].x - f.pts[0].x;
+    let dy1 = f.pts[1].y - f.pts[0].y;
+    let dx2 = f.pts[2].x - f.pts[1].x;
+    let dy2 = f.pts[2].y - f.pts[1].y;
+    let cross = dx1 * dy2 - dy1 * dx2;
+    
+    if (cross > 0) {
+      let rC = Math.round(baseColorRGB[0] * f.mult);
+      let gC = Math.round(baseColorRGB[1] * f.mult);
+      let bC = Math.round(baseColorRGB[2] * f.mult);
+      
+      ctx.fillStyle = `rgb(${rC},${gC},${bC})`;
+      ctx.beginPath();
+      ctx.moveTo(f.pts[0].x, f.pts[0].y);
+      ctx.lineTo(f.pts[1].x, f.pts[1].y);
+      ctx.lineTo(f.pts[2].x, f.pts[2].y);
+      ctx.lineTo(f.pts[3].x, f.pts[3].y);
+      ctx.closePath();
+      ctx.fill();
+      
+      if (f.mult === 1.0) {
+        ctx.strokeStyle = isEsp ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.15)';
+      } else {
+        ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+      }
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+  }
+  
+  if (isEsp) {
+    let topCenterY = (v[4].y + v[5].y + v[6].y + v[7].y) / 4;
+    let topCenterX = (v[4].x + v[5].x + v[6].x + v[7].x) / 4;
+    ctx.fillStyle = '#00d4ff';
+    ctx.font = 'bold 11px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('ESP32', topCenterX, topCenterY - 14);
+  }
+}
+
+function drawHeatmap() {
+  if (!W || !H) return;
+  ctx.clearRect(0,0,W,H);
+  
+  hotzone1.c += (tgt1.c - hotzone1.c) * 0.05;
+  hotzone1.r += (tgt1.r - hotzone1.r) * 0.05;
+  hotzone2.c += (tgt2.c - hotzone2.c) * 0.05;
+  hotzone2.r += (tgt2.r - hotzone2.r) * 0.05;
+
+  let tiles = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      let idx = r*COLS + c;
+      cellValues[idx] += (cellTargets[idx] - cellValues[idx]) * 0.08;
+      
+      let cx = c - COLS/2;
+      let cy = r - ROWS/2;
+      let p = project(cx, cy, 0);
+      
+      tiles.push({ c, r, val: cellValues[idx], depth: p.z });
+    }
+  }
+
+  // Sort back-to-front
+  tiles.sort((a, b) => a.depth - b.depth);
+
+  for (let i = 0; i < tiles.length; i++) {
+    drawCube(tiles[i].c, tiles[i].r, tiles[i].val, false);
+  }
+
+  // Draw ESP marker near bottom
+  drawCube(16, 28, 0, true);
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  drawHeatmap();
+}
+requestAnimationFrame(animate);
+
+/* ================================================================
+   UI UPDATES
+================================================================ */
+function updateHUD(data) {
+  const p = data.presence || 'EMPTY';
+  const c = data.person_count || 0;
+  const ms = data.motion_score || 0;
+  const bpm = data.br_bpm || 0;
+  const rssi = data.rssi || -100;
+  
+  // Vitals
+  if (p === 'SINGLE') {
+    hrVal.innerHTML = `${Math.round(demoHr)}<span class="val-unit">BPM</span>`;
+    hrVal.style.color = '#fff';
+    brVal.innerHTML = `${bpm > 0 ? bpm : '--'}<span class="val-unit">RPM</span>`;
+    brVal.style.color = '#fff';
+  } else {
+    hrVal.innerHTML = `--<span class="val-unit">BPM</span>`;
+    hrVal.style.color = 'var(--muted)';
+    brVal.innerHTML = `--<span class="val-unit">RPM</span>`;
+    brVal.style.color = 'var(--muted)';
+  }
+
+  // Confidence
+  let conf = 0;
+  if (p !== 'EMPTY') {
+    conf = Math.min(85 + ms*10, 99);
+  }
+  confVal.textContent = Math.round(conf) + '%';
+  confBar.style.width = conf + '%';
+
+  // Signal & RSSI
+  rssiVal.textContent = `${rssi} dBm`;
+  if (rssi > -50) rssiVal.style.color = 'var(--green)';
+  else if (rssi > -70) rssiVal.style.color = 'var(--amber)';
+  else rssiVal.style.color = 'var(--red)';
+
+  varVal.textContent = ms.toFixed(2);
+  motVal.textContent = (ms*0.05).toFixed(3);
+  motBar.style.width = Math.min(ms*20, 100) + '%';
+
+  // Persons
+  perVal.textContent = c;
+  let dots = '';
+  for(let i=0; i<7; i++) {
+    dots += (i < c) ? '<span class="dot-filled">●</span>' : '○';
+  }
+  perDots.innerHTML = dots;
+
+  // Presence Box
+  if (p === 'EMPTY') {
+    presBox.className = 'absent'; presBox.textContent = 'ABSENT';
+  } else if (p === 'SINGLE') {
+    presBox.className = 'present'; presBox.textContent = 'PRESENT';
+  } else {
+    presBox.className = 'multiple'; presBox.textContent = 'MULTIPLE';
+  }
+
+  // Bottom Bar Indicators
+  bbPres.className = p !== 'EMPTY' ? 'bb-dot active' : 'bb-dot';
+  bbVit.className = (p === 'SINGLE' && bpm > 0) ? 'bb-dot active' : 'bb-dot';
+  bbSig.className = rssi > -80 ? 'bb-dot active' : 'bb-dot';
+
+  updateHeatmapTargets(data);
+}
+
+/* ================================================================
+   DEMO MODE
+================================================================ */
+function genDemo() {
+  demoTick++; 
+  demoPhaseTimer++;
+  let phaseDef = DEMO_SEQ[demoSeqIdx];
+  if (demoPhaseTimer >= phaseDef.t) {
+    demoPhaseTimer = 0; 
+    demoSeqIdx = (demoSeqIdx+1) % DEMO_SEQ.length;
+    phaseDef = DEMO_SEQ[demoSeqIdx];
+  }
+
+  let t = demoTick * 0.1;
+  let p = phaseDef.p;
+  
+  demoHr += (Math.random() - 0.5) * 0.5;
+  if (demoHr < 68) demoHr = 68;
+  if (demoHr > 74) demoHr = 74;
+
+  let mb = p === 'EMPTY' ? 0.0 : (p === 'SINGLE' ? 0.8 : 2.5);
+  let data = {
+    presence: p, 
+    person_count: p === 'EMPTY' ? 0 : (p === 'SINGLE' ? 1 : 2),
+    motion_score: Math.max(0, mb + (Math.random()-0.5)*0.5),
+    br_bpm: p === 'SINGLE' ? Math.round(16 + 2*Math.sin(t*0.05)) : 0,
+    rssi: Math.round(-42 + 4*Math.sin(t*0.08) + (Math.random()-0.5)*2),
+    subcarriers: []
+  };
+  
+  if (p === 'EMPTY') data.rssi = -90;
+
+  lastData = data;
+  lastMsgTime = Date.now();
+  updateHUD(data);
+}
+
+function setConn(state) {
+  badgeDemo.classList.remove('visible');
+  badgeLive.classList.remove('visible');
+  liveIp.style.display = 'none';
+
+  if (state === 'demo') {
+    badgeDemo.classList.add('visible');
+  } else if (state === 'connected') {
+    badgeLive.classList.add('visible');
+    liveIp.textContent = _resolvedIp || '';
+    liveIp.style.display = 'block';
+  }
+}
+
+function startDemo() {
+  if (isDemo) return;
+  isDemo = true; setConn('demo');
+  demoTimer = setInterval(genDemo, 100);
+}
+
+/* ================================================================
+   IP PROMPT OVERLAY
+================================================================ */
+function showIpPrompt() {
+  document.getElementById('ip-overlay').classList.add('show');
+  const input = document.getElementById('ip-input');
+  const btn   = document.getElementById('ip-connect');
+
+  function applyIp() {
+    const val = input.value.trim();
+    if (!val) return;
+    _resolvedIp = val;
+    WS_URL = `ws://${val}/ws`;
+    document.getElementById('ip-overlay').classList.remove('show');
+    connectWS();
+  }
+
+  btn.addEventListener('click', applyIp);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') applyIp(); });
+  setTimeout(() => input.focus(), 100);
+}
+
+/* ================================================================
+   WEBSOCKET
+================================================================ */
+function connectWS() {
+  if (!WS_URL) { showIpPrompt(); startDemo(); return; }
+  if (ws) { ws.onclose=null; ws.close(); ws=null; }
+  
+  if (fallbackTimer) clearTimeout(fallbackTimer);
+  fallbackTimer = setTimeout(() => { if (!isConnected) startDemo(); }, DEMO_FALLBACK_MS);
+  
+  try { ws = new WebSocket(WS_URL); } catch(e) { scheduleReconn(); return; }
+  
+  ws.onopen = () => {
+    isConnected = true;
+    if (fallbackTimer) clearTimeout(fallbackTimer);
+    if (demoTimer) { clearInterval(demoTimer); isDemo=false; }
+    setConn('connected');
+  };
+  ws.onmessage = (e) => {
+    try { let d = JSON.parse(e.data); lastData=d; lastMsgTime=Date.now(); updateHUD(d); } catch(err){}
+  };
+  ws.onclose = () => {
+    isConnected = false; scheduleReconn();
+    if (!isDemo) startDemo();
+  };
+}
+
+function scheduleReconn() {
+  if (reconnectTimer) clearTimeout(reconnectTimer);
+  reconnectTimer = setTimeout(connectWS, RECONNECT_MS);
+}
+
+// Defer until overlay div is in the DOM (it's placed after this script tag)
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', connectWS);
+} else {
+  connectWS();
+}
+
+</script>
+
+<!-- IP Prompt Overlay (shown only when IP cannot be auto-detected) -->
+<div id="ip-overlay">
+  <div id="ip-box">
+    <h3>⚡ Connect to ESP32</h3>
+    <p>Enter your ESP32's IP address.<br>Find it in the serial monitor after boot.</p>
+    <input id="ip-input" type="text" placeholder="e.g. 10.22.76.83" spellcheck="false" autocomplete="off">
+    <button id="ip-connect">Connect</button>
+    <div class="ip-hint">
+      Tip: Open as <code style="color:var(--cyan)">http://&lt;ESP32-IP&gt;/</code> to skip this step.
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,11 @@
+# ESP32 build artifacts
+csi-monitor/build/
+csi-monitor/.cache/
+csi-monitor/sdkconfig.old
+
+# Git backups
+csi-monitor/.git_bak/
+
+# Local workspace configs
+.vscode/
+*.code-workspace

@@ -1,0 +1,1637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPARS Vision — Multi-Node Deployment Scenario Dashboard</title>
+  
+  <!-- Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Outfit:wght@300;400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --accent: #00ff88; /* dynamic dynamic color */
+      --accent-alpha: rgba(0, 255, 136, 0.2);
+      --bg: #050a0f;
+      --card-bg: rgba(5, 10, 15, 0.85);
+      --border-alpha: rgba(0, 255, 136, 0.3);
+      --font-family: 'Outfit', sans-serif;
+      --font-mono: 'Share Tech Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg);
+      font-family: var(--font-family);
+      color: #e0e6ed;
+    }
+
+    /* Error Message Overlay */
+    #error-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #000;
+      z-index: 9999;
+      color: #ff3333;
+      padding: 3rem;
+      font-family: var(--font-mono);
+      font-size: 1.2rem;
+    }
+
+    /* 3D Container */
+    #canvas-container {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      cursor: grab;
+    }
+    #canvas-container:active {
+      cursor: grabbing;
+    }
+
+    /* Header Bar */
+    header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 48px;
+      background: rgba(5, 10, 15, 0.8);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 1.5rem;
+      z-index: 10;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+
+    .header-logo {
+      font-family: 'Playfair Display', serif;
+      font-style: italic;
+      font-weight: 700;
+      font-size: 1.3rem;
+      letter-spacing: 0.05em;
+      color: #fff;
+    }
+
+    .header-tag {
+      font-size: 9px;
+      letter-spacing: 0.25em;
+      color: #8892b0;
+      text-transform: uppercase;
+      font-weight: 600;
+      border-left: 1px solid rgba(255, 255, 255, 0.15);
+      padding-left: 0.8rem;
+      margin-top: 0.1rem;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .header-right .vision-title {
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      color: #444444;
+      font-weight: 600;
+      text-transform: uppercase;
+      font-style: italic;
+    }
+
+    .header-right .badge {
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #8892b0;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 0.2rem 0.5rem;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* Styled Dropdown */
+    .scenario-select {
+      background: #050a0f;
+      border: 1px solid var(--accent);
+      color: #fff;
+      padding: 6px 16px;
+      font-size: 13px;
+      font-family: var(--font-family);
+      font-weight: 600;
+      cursor: pointer;
+      outline: none;
+      transition: all 0.3s ease;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    }
+    .scenario-select:hover {
+      box-shadow: 0 0 15px var(--accent-alpha);
+    }
+    .scenario-select option {
+      background: #050a0f;
+      color: #fff;
+      padding: 8px;
+    }
+
+    /* Screen Fade transition wrapper */
+    #dashboard-view {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      transition: opacity 300ms ease-in-out;
+      opacity: 1;
+    }
+
+    /* HUD Overlay Panels */
+    .hud-card {
+      position: absolute;
+      background: var(--card-bg);
+      border: 1px solid var(--border-alpha);
+      box-shadow: 0 0 12px rgba(0, 0, 0, 0.6), 0 0 8px var(--accent-alpha);
+      pointer-events: auto;
+      z-index: 5;
+      padding: 1.5rem;
+      backdrop-filter: blur(5px);
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+    }
+
+    .hud-left {
+      left: 1.5rem;
+      top: 80px;
+      width: 320px;
+    }
+
+    .hud-right {
+      right: 1.5rem;
+      top: 80px;
+      width: 320px;
+    }
+
+    .hud-card h3 {
+      margin: 0;
+      font-size: 11px;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--accent);
+      border-bottom: 1px solid var(--border-alpha);
+      padding-bottom: 0.6rem;
+      font-weight: 700;
+    }
+
+    /* Metrics and info listing */
+    .metrics-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+
+    .metric-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      padding-bottom: 0.4rem;
+    }
+
+    .metric-label {
+      font-size: 12px;
+      color: #8892b0;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .metric-value {
+      font-family: var(--font-mono);
+      font-size: 16px;
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    .metric-value.highlight {
+      color: var(--accent);
+      text-shadow: 0 0 5px var(--accent-alpha);
+    }
+
+    /* Range Indicators */
+    .range-bar {
+      width: 100%;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      margin-top: 0.3rem;
+      position: relative;
+    }
+
+    .range-fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      background: var(--accent);
+      box-shadow: 0 0 6px var(--accent);
+      width: 70%;
+    }
+
+    /* Alert / Control Section */
+    .control-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+
+    .simulate-btn {
+      background: transparent;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      font-family: var(--font-mono);
+      padding: 8px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      text-align: center;
+    }
+
+    .simulate-btn:hover {
+      background: var(--accent-alpha);
+      box-shadow: 0 0 10px var(--accent-alpha);
+    }
+
+    /* Log Output */
+    .log-container {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 0.8rem;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      height: 120px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .log-entry {
+      color: #8892b0;
+      display: flex;
+      gap: 0.5rem;
+    }
+    .log-entry.alert {
+      color: #ff3333;
+    }
+
+    /* Use Case Box */
+    .usecase-panel {
+      position: absolute;
+      left: 1.5rem;
+      bottom: 60px;
+      max-width: 420px;
+      background: var(--card-bg);
+      border-left: 3px solid var(--accent);
+      padding: 1rem 1.2rem;
+      pointer-events: auto;
+      z-index: 5;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #8892b0;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Alert Banner (Bottom Center) */
+    .alert-banner {
+      position: absolute;
+      bottom: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 30px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      z-index: 5;
+      pointer-events: auto;
+      transition: all 0.3s ease;
+      text-align: center;
+      min-width: 320px;
+    }
+
+    .alert-banner.normal {
+      background: rgba(0, 255, 136, 0.15);
+      border: 1px solid #00ff88;
+      color: #00ff88;
+      box-shadow: 0 0 10px rgba(0, 255, 136, 0.2);
+    }
+
+    .alert-banner.alert {
+      background: rgba(255, 51, 51, 0.18);
+      border: 1px solid #ff3333;
+      color: #ff3333;
+      box-shadow: 0 0 15px rgba(255, 51, 51, 0.3);
+      animation: alert-pulse 1.5s infinite alternate;
+    }
+
+    @keyframes alert-pulse {
+      0% { opacity: 0.8; box-shadow: 0 0 10px rgba(255, 51, 51, 0.2); }
+      100% { opacity: 1; box-shadow: 0 0 25px rgba(255, 51, 51, 0.5); }
+    }
+
+    /* Footer */
+    footer {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 36px;
+      background: rgba(5, 10, 15, 0.9);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 1.5rem;
+      z-index: 10;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      color: #8892b0;
+    }
+
+    .footer-left {
+      font-family: var(--font-mono);
+      font-weight: 500;
+    }
+
+    .footer-center {
+      display: flex;
+      gap: 0.8rem;
+      align-items: center;
+    }
+
+    .node-dot-group {
+      display: flex;
+      gap: 0.4rem;
+      align-items: center;
+    }
+
+    .node-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #00ff88;
+      box-shadow: 0 0 6px #00ff88;
+      animation: dot-pulse 1.8s infinite ease-in-out;
+    }
+
+    .node-dot:nth-child(2) { animation-delay: 0.3s; }
+    .node-dot:nth-child(3) { animation-delay: 0.6s; }
+    .node-dot:nth-child(4) { animation-delay: 0.9s; }
+
+    @keyframes dot-pulse {
+      0%, 100% { opacity: 0.4; transform: scale(0.8); }
+      50% { opacity: 1; transform: scale(1.2); }
+    }
+
+    .footer-right {
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    /* CSS Labels overlay mapped to 3D Nodes */
+    #node-labels-container {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .node-label {
+      position: absolute;
+      left: 0;
+      top: 0;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      background: rgba(0, 212, 255, 0.15);
+      border: 1px solid #00d4ff;
+      color: #00d4ff;
+      padding: 2px 6px;
+      white-space: nowrap;
+      pointer-events: none;
+      transform: translate(-50%, -100%);
+      box-shadow: 0 0 6px rgba(0, 212, 255, 0.3);
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Three.js CDN Fail message -->
+  <div id="error-overlay">
+    <h2>SYSTEM FATAL: DEPENDENCY EXCEPTION</h2>
+    <p>Failed to load core rendering module (Three.js). Standalone concept loader aborted.</p>
+    <p>Please check your internet connection or verify the CDN script reference.</p>
+  </div>
+
+  <!-- Header -->
+  <header>
+    <div class="header-left">
+      <span class="header-logo">SPARS</span>
+      <span class="header-tag">Wifi Presence Monitoring</span>
+    </div>
+    
+    <select class="scenario-select" id="scenario-select">
+      <option value="care">🏠 Elder Care — Smart Home</option>
+      <option value="security">🏢 Security — Office & Building</option>
+      <option value="clinical">🏥 Clinical — Hospital Room</option>
+    </select>
+    
+    <div class="header-right">
+      <span class="vision-title">Vision Mode — Multi-Node Deployment</span>
+      <span class="badge">v2 concept</span>
+    </div>
+  </header>
+
+  <!-- 3D Render Port -->
+  <div id="canvas-container"></div>
+
+  <!-- Projected 3D Node Labels -->
+  <div id="node-labels-container">
+    <div id="node-lbl-0" class="node-label">NODE 1</div>
+    <div id="node-lbl-1" class="node-label">NODE 2</div>
+    <div id="node-lbl-2" class="node-label">NODE 3</div>
+    <div id="node-lbl-3" class="node-label">NODE 4</div>
+  </div>
+
+  <!-- Dynamic HUD View -->
+  <div id="dashboard-view">
+    
+    <!-- Left HUD -->
+    <div class="hud-card hud-left" id="panel-left">
+      <!-- dynamic dynamic content -->
+    </div>
+
+    <!-- Right HUD -->
+    <div class="hud-card hud-right" id="panel-right">
+      <!-- dynamic dynamic content -->
+    </div>
+
+    <!-- Use Case Panel -->
+    <div class="usecase-panel" id="panel-usecase">
+      <!-- dynamic dynamic content -->
+    </div>
+
+    <!-- Alert Indicator bar -->
+    <div class="alert-banner normal" id="alert-banner">
+      All Vitals Normal
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-left">
+      4-NODE DEPLOYMENT // 6M RADIUS PER NODE // ~24M² COVERAGE
+    </div>
+    <div class="footer-center">
+      <span>NODES ONLINE:</span>
+      <div class="node-dot-group">
+        <div class="node-dot"></div>
+        <div class="node-dot"></div>
+        <div class="node-dot"></div>
+        <div class="node-dot"></div>
+      </div>
+    </div>
+    <div class="footer-right">
+      CONCEPT — BASED ON WORKING v1 PROTOTYPE
+    </div>
+  </footer>
+
+  <!-- Three.js Core Loader -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <script>
+    // ─── ERROR GATE FOR THREE.JS ──────────────────────────────────────
+    if (typeof THREE === 'undefined') {
+      document.getElementById('error-overlay').style.display = 'block';
+      throw new Error("Three.js not loaded.");
+    }
+
+    // ─── STATE MANAGEMENT ─────────────────────────────────────────────
+    let activeScenario = 'care';
+    let simulationActive = false;
+    let businessHours = true; // For Security mode
+    let audioContext = null;  // For clinical alert beep
+
+    // Preset theme configurations
+    const themes = {
+      care: {
+        accent: '#00ff88',
+        accentAlpha: 'rgba(0, 255, 136, 0.2)',
+        borderAlpha: 'rgba(0, 255, 136, 0.3)'
+      },
+      security: {
+        accent: '#00d4ff',
+        accentAlpha: 'rgba(0, 212, 255, 0.2)',
+        borderAlpha: 'rgba(0, 212, 255, 0.3)'
+      },
+      clinical: {
+        accent: '#4488ff',
+        accentAlpha: 'rgba(68, 136, 255, 0.2)',
+        borderAlpha: 'rgba(68, 136, 255, 0.3)'
+      }
+    };
+
+    // ─── WEB AUDIO BEEP UTILITY ──────────────────────────────────────
+    function playBeep(freq = 800, duration = 0.2) {
+      try {
+        if (!audioContext) {
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioContext.state === 'suspended') {
+          audioContext.resume();
+        }
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        gain.gain.setValueAtTime(0.1, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + duration);
+        osc.start();
+        osc.stop(audioContext.currentTime + duration);
+      } catch (e) {
+        console.warn("Audio Context failed to start:", e);
+      }
+    }
+
+    // ─── THREE.JS SCENE SETUP ─────────────────────────────────────────
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000000);
+
+    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+
+    // Camera Orbital Control State
+    let theta = 0;
+    let phi = Math.PI / 4;
+    let radius = 13;
+    let isDragging = false;
+    let prevMouseX = 0;
+    let prevMouseY = 0;
+
+    function updateCamera() {
+      camera.position.x = radius * Math.sin(theta) * Math.cos(phi);
+      camera.position.y = radius * Math.sin(phi);
+      camera.position.z = radius * Math.cos(theta) * Math.cos(phi);
+      camera.lookAt(0, 0, 0);
+    }
+    updateCamera();
+
+    // Mouse drag handlers for custom orbit controls
+    container.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      prevMouseX = e.clientX;
+      prevMouseY = e.clientY;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const deltaX = e.clientX - prevMouseX;
+      const deltaY = e.clientY - prevMouseY;
+      prevMouseX = e.clientX;
+      prevMouseY = e.clientY;
+
+      theta -= deltaX * 0.005;
+      phi = Math.max(0.1, Math.min(Math.PI / 2 - 0.05, phi + deltaY * 0.005));
+      updateCamera();
+    });
+
+    window.addEventListener('mouseup', () => { isDragging = false; });
+
+    // Scroll to zoom handler
+    window.addEventListener('wheel', (e) => {
+      radius = Math.max(5, Math.min(20, radius + e.deltaY * 0.01));
+      updateCamera();
+    });
+
+    // Handle Resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Lights
+    const ambientLight = new THREE.AmbientLight(0x222222);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(5, 10, 5);
+    scene.add(dirLight);
+
+    // ─── SHARED SCENE OBJECTS (FLOOR & NODES) ──────────────────────────
+    // Floor
+    const floorGeo = new THREE.PlaneGeometry(10, 10);
+    const floorMat = new THREE.MeshStandardMaterial({
+      color: 0x030803,
+      roughness: 0.4,
+      metalness: 0.1
+    });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    scene.add(floor);
+
+    // Grid
+    const grid = new THREE.GridHelper(10, 20, 0x0a1a0a, 0x0a1a0a);
+    grid.position.y = 0.01;
+    scene.add(grid);
+
+    // Node Positions definition
+    const nodePositions = [
+      new THREE.Vector3(-4, 0.075, -4),
+      new THREE.Vector3(4, 0.075, -4),
+      new THREE.Vector3(-4, 0.075, 4),
+      new THREE.Vector3(4, 0.075, 4)
+    ];
+
+    const nodesGroup = new THREE.Group();
+    const torusRings = [];
+    const pointLights = [];
+
+    nodePositions.forEach((pos) => {
+      const node = new THREE.Group();
+      node.position.copy(pos);
+
+      // Base enclosure
+      const boxGeo = new THREE.BoxGeometry(0.2, 0.15, 0.05);
+      const boxMat = new THREE.MeshBasicMaterial({ color: 0x00d4ff });
+      const box = new THREE.Mesh(boxGeo, boxMat);
+      node.add(box);
+
+      // Antenna
+      const antGeo = new THREE.CylinderGeometry(0.008, 0.008, 0.3);
+      const antMat = new THREE.MeshBasicMaterial({ color: 0xcccccc });
+      const ant = new THREE.Mesh(antGeo, antMat);
+      ant.position.set(0, 0.15 + 0.075, 0);
+      node.add(ant);
+
+      // Point Light
+      const pLight = new THREE.PointLight(0x00d4ff, 0.3, 3);
+      pLight.position.set(0, 0.1, 0);
+      node.add(pLight);
+      pointLights.push(pLight);
+
+      // Pulsing torus ring
+      const ringGeo = new THREE.TorusGeometry(1, 0.01, 8, 32);
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: 0x00d4ff,
+        transparent: true,
+        opacity: 0.4
+      });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.rotation.x = -Math.PI / 2;
+      node.add(ring);
+      torusRings.push(ring);
+
+      nodesGroup.add(node);
+    });
+    scene.add(nodesGroup);
+
+    // Mesh lines between nodes (6 total lines connecting nodes)
+    const meshLinesGroup = new THREE.Group();
+    const meshLines = [];
+
+    const linePairs = [
+      [0, 1], [0, 2], [0, 3],
+      [1, 2], [1, 3],
+      [2, 3]
+    ];
+
+    linePairs.forEach(([idxA, idxB]) => {
+      const posA = nodePositions[idxA].clone();
+      const posB = nodePositions[idxB].clone();
+      
+      const points = [posA, posB];
+      const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+      const lineMat = new THREE.LineBasicMaterial({
+        color: 0x001a00,
+        transparent: true,
+        opacity: 0.6
+      });
+      const line = new THREE.Line(lineGeo, lineMat);
+      meshLinesGroup.add(line);
+      meshLines.push({ mesh: line, mat: lineMat });
+    });
+    scene.add(meshLinesGroup);
+
+    // ─── SCENARIO SPECIFIC CONTAINER GROUPS ──────────────────────────
+    const scenarioGroup = new THREE.Group();
+    scene.add(scenarioGroup);
+
+    // ─── SCENARIO 1 OBJECTS: ELDER CARE ────────────────────────────────
+    let bedMesh, personGroup, dangerZoneSphere, particlesGroup;
+    let S1_breathingScale = 1.0;
+
+    function buildElderCare() {
+      scenarioGroup.clear();
+      
+      // Bed
+      const bedFrameGeo = new THREE.BoxGeometry(1.5, 0.4, 0.8);
+      const bedMat = new THREE.MeshStandardMaterial({ color: 0x1a1a2a });
+      bedMesh = new THREE.Mesh(bedFrameGeo, bedMat);
+      bedMesh.position.set(0, 0.2, 0);
+      scenarioGroup.add(bedMesh);
+
+      const pillowGeo = new THREE.BoxGeometry(0.3, 0.12, 0.6);
+      const pillowMat = new THREE.MeshStandardMaterial({ color: 0xdddddd });
+      const pillow = new THREE.Mesh(pillowGeo, pillowMat);
+      pillow.position.set(-0.55, 0.45, 0);
+      scenarioGroup.add(pillow);
+
+      // Person Model lying on bed
+      personGroup = new THREE.Group();
+      personGroup.position.set(0.1, 0.48, 0);
+
+      // Body (capsule/cylinder)
+      const bodyGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.9, 16);
+      bodyGeo.rotateZ(Math.PI / 2);
+      const bodyMat = new THREE.MeshStandardMaterial({ color: 0x2a3a2a });
+      const body = new THREE.Mesh(bodyGeo, bodyMat);
+      body.name = "body";
+      personGroup.add(body);
+
+      // Head
+      const headGeo = new THREE.SphereGeometry(0.13, 16, 16);
+      const head = new THREE.Mesh(headGeo, bodyMat);
+      head.position.set(-0.58, 0.05, 0);
+      personGroup.add(head);
+
+      scenarioGroup.add(personGroup);
+
+      // Danger zone indicator (Alert mode)
+      const dangerGeo = new THREE.SphereGeometry(1.2, 32, 16);
+      const dangerMat = new THREE.MeshBasicMaterial({
+        color: 0xff1111,
+        transparent: true,
+        opacity: 0.0,
+        wireframe: true
+      });
+      dangerZoneSphere = new THREE.Mesh(dangerGeo, dangerMat);
+      dangerZoneSphere.position.set(0, 0.5, 0);
+      scenarioGroup.add(dangerZoneSphere);
+
+      // Flowing CSI signal arcs & particles
+      particlesGroup = new THREE.Group();
+      scenarioGroup.add(particlesGroup);
+
+      nodePositions.forEach((pos) => {
+        // Simple curved line connecting Node to bed center
+        const curve = new THREE.QuadraticBezierCurve3(
+          pos,
+          new THREE.Vector3((pos.x + 0)/2, 2.5, (pos.z + 0)/2),
+          new THREE.Vector3(0, 0.4, 0)
+        );
+        
+        const points = curve.getPoints(30);
+        const arcGeo = new THREE.BufferGeometry().setFromPoints(points);
+        const arcMat = new THREE.LineBasicMaterial({
+          color: 0x00ff88,
+          transparent: true,
+          opacity: 0.12
+        });
+        const arc = new THREE.Line(arcGeo, arcMat);
+        scenarioGroup.add(arc);
+
+        // Particle floating along arc
+        const pGeo = new THREE.SphereGeometry(0.04, 8, 8);
+        const pMat = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
+        const p = new THREE.Mesh(pGeo, pMat);
+        
+        particlesGroup.add(p);
+        p.userData = {
+          curve: curve,
+          progress: Math.random()
+        };
+      });
+    }
+
+    // ─── SCENARIO 2 OBJECTS: OFFICE SECURITY ──────────────────────────
+    let securityPeople = [];
+    let zonesGroup;
+
+    function buildOfficeSecurity() {
+      scenarioGroup.clear();
+
+      // Desks
+      const deskPositions = [
+        new THREE.Vector3(-2, 0.3, -2),
+        new THREE.Vector3(2, 0.3, -1.8),
+        new THREE.Vector3(-2.2, 0.3, 2),
+        new THREE.Vector3(1.8, 0.3, 2.2)
+      ];
+
+      deskPositions.forEach((pos) => {
+        const deskGeo = new THREE.BoxGeometry(1.0, 0.6, 0.6);
+        const deskMat = new THREE.MeshStandardMaterial({ color: 0x0a1520 });
+        const desk = new THREE.Mesh(deskGeo, deskMat);
+        desk.position.copy(pos);
+        scenarioGroup.add(desk);
+      });
+
+      // Entry point
+      const doorGeo = new THREE.BoxGeometry(0.1, 1.2, 0.8);
+      const doorMat = new THREE.MeshStandardMaterial({ color: 0x1a3a1a });
+      const door = new THREE.Mesh(doorGeo, doorMat);
+      door.position.set(-4.95, 0.6, 0);
+      scenarioGroup.add(door);
+
+      // Security floor zones (Floor tints)
+      zonesGroup = new THREE.Group();
+      scenarioGroup.add(zonesGroup);
+
+      // Secure/restricted zone visualizer boundary on floor
+      const restrictGeo = new THREE.BoxGeometry(4, 0.01, 8);
+      const restrictMat = new THREE.MeshBasicMaterial({
+        color: simulationActive ? 0xff3333 : 0x00ff88,
+        transparent: true,
+        opacity: 0.08
+      });
+      const zoneFloor = new THREE.Mesh(restrictGeo, restrictMat);
+      zoneFloor.position.set(2, 0.015, 0);
+      zoneFloor.name = "floor_tint";
+      zonesGroup.add(zoneFloor);
+
+      const zoneLinePoints = [
+        new THREE.Vector3(0, 0.02, -4),
+        new THREE.Vector3(0, 0.02, 4)
+      ];
+      const zoneLineGeo = new THREE.BufferGeometry().setFromPoints(zoneLinePoints);
+      const zoneLineMat = new THREE.LineBasicMaterial({
+        color: simulationActive ? 0xff3333 : 0x00d4ff,
+        linewidth: 2
+      });
+      const zoneLine = new THREE.Line(zoneLineGeo, zoneLineMat);
+      zoneLine.name = "zone_boundary";
+      zonesGroup.add(zoneLine);
+
+      // Figures walking paths (2 persons)
+      securityPeople = [];
+      
+      const personConfig = [
+        {
+          color: 0x00d4ff,
+          center: new THREE.Vector3(-2, 0, 0),
+          range: 1.8,
+          speed: 0.015,
+          time: 0
+        },
+        {
+          color: 0x00d4ff,
+          center: new THREE.Vector3(1.5, 0, 1),
+          range: 2.2,
+          speed: 0.009,
+          time: Math.PI
+        }
+      ];
+
+      personConfig.forEach((cfg) => {
+        const figure = new THREE.Group();
+        
+        // Head
+        const headGeo = new THREE.SphereGeometry(0.12, 16, 16);
+        const mat = new THREE.MeshBasicMaterial({ color: cfg.color });
+        const head = new THREE.Mesh(headGeo, mat);
+        head.position.y = 0.9;
+        figure.add(head);
+
+        // Body
+        const bodyGeo = new THREE.BoxGeometry(0.16, 0.6, 0.12);
+        const body = new THREE.Mesh(bodyGeo, mat);
+        body.position.y = 0.5;
+        figure.add(body);
+
+        figure.position.copy(cfg.center);
+        scenarioGroup.add(figure);
+
+        securityPeople.push({
+          group: figure,
+          head: head,
+          body: body,
+          config: cfg
+        });
+      });
+    }
+
+    // ─── SCENARIO 3 OBJECTS: CLINICAL / HOSPITAL ─────────────────────
+    let clinicalBed, patientGroup, heartPulseMesh, vitalTextureCanvas, vitalTextureContext, vitalLineMesh;
+    let s3_breathingScale = 1.0;
+    let s3_heartBeatScale = 1.0;
+    let s3_ecgX = 0;
+
+    function buildClinical() {
+      scenarioGroup.clear();
+
+      // Clinical Bed frame
+      const frameGeo = new THREE.BoxGeometry(1.6, 0.3, 0.85);
+      const frameMat = new THREE.MeshStandardMaterial({ color: 0x223344 });
+      clinicalBed = new THREE.Mesh(frameGeo, frameMat);
+      clinicalBed.position.set(0, 0.3, 0);
+      scenarioGroup.add(clinicalBed);
+
+      const railLGeo = new THREE.BoxGeometry(1.2, 0.15, 0.02);
+      const railMat = new THREE.MeshStandardMaterial({ color: 0x8892b0 });
+      const railL = new THREE.Mesh(railLGeo, railMat);
+      railL.position.set(0, 0.5, 0.44);
+      scenarioGroup.add(railL);
+
+      const railR = railL.clone();
+      railR.position.z = -0.44;
+      scenarioGroup.add(railR);
+
+      // IV Medical Stand
+      const ivStand = new THREE.Group();
+      ivStand.position.set(-0.9, 0, -0.6);
+      
+      const poleGeo = new THREE.CylinderGeometry(0.015, 0.015, 1.8);
+      const poleMat = new THREE.MeshStandardMaterial({ color: 0xdddddd });
+      const pole = new THREE.Mesh(poleGeo, poleMat);
+      pole.position.y = 0.9;
+      ivStand.add(pole);
+
+      const boxGeo = new THREE.BoxGeometry(0.15, 0.25, 0.15);
+      const boxMat = new THREE.MeshStandardMaterial({ color: 0x4488ff });
+      const box = new THREE.Mesh(boxGeo, boxMat);
+      box.position.set(0, 1.3, 0);
+      ivStand.add(box);
+
+      scenarioGroup.add(ivStand);
+
+      // Patient lying down
+      patientGroup = new THREE.Group();
+      patientGroup.position.set(0.1, 0.52, 0);
+
+      const bodyGeo = new THREE.CylinderGeometry(0.14, 0.14, 0.9, 16);
+      bodyGeo.rotateZ(Math.PI / 2);
+      const bodyMat = new THREE.MeshStandardMaterial({ color: 0x2a3a4a });
+      const body = new THREE.Mesh(bodyGeo, bodyMat);
+      patientGroup.add(body);
+
+      const headGeo = new THREE.SphereGeometry(0.12, 16, 16);
+      const head = new THREE.Mesh(headGeo, bodyMat);
+      head.position.set(-0.55, 0.04, 0);
+      patientGroup.add(head);
+
+      scenarioGroup.add(patientGroup);
+
+      // Heart Rate Pulsing Sphere
+      const pulseGeo = new THREE.SphereGeometry(0.06, 16, 16);
+      const pulseMat = new THREE.MeshBasicMaterial({
+        color: 0x4488ff,
+        transparent: true,
+        opacity: 0.8
+      });
+      heartPulseMesh = new THREE.Mesh(pulseGeo, pulseMat);
+      heartPulseMesh.position.set(-0.1, 0.72, 0.02);
+      scenarioGroup.add(heartPulseMesh);
+
+      // Waveform Display (ECG Canvas Billboard)
+      vitalTextureCanvas = document.createElement('canvas');
+      vitalTextureCanvas.width = 256;
+      vitalTextureCanvas.height = 128;
+      vitalTextureContext = vitalTextureCanvas.getContext('2d');
+      
+      // Paint initial grid
+      vitalTextureContext.fillStyle = '#000000';
+      vitalTextureContext.fillRect(0,0,256,128);
+
+      const canvasTex = new THREE.CanvasTexture(vitalTextureCanvas);
+      const boardGeo = new THREE.PlaneGeometry(1.2, 0.6);
+      const boardMat = new THREE.MeshBasicMaterial({
+        map: canvasTex,
+        side: THREE.DoubleSide
+      });
+      vitalLineMesh = new THREE.Mesh(boardGeo, boardMat);
+      vitalLineMesh.position.set(0, 1.5, -0.4);
+      vitalLineMesh.rotation.y = 0.2; // slight angle
+      scenarioGroup.add(vitalLineMesh);
+    }
+
+    // Dynamic ECG drawing
+    function drawECGFrame(bpm, isApnea) {
+      if (!vitalTextureContext) return;
+      const ctx = vitalTextureContext;
+
+      // Shift canvas to left
+      const imgData = ctx.getImageData(2, 0, 254, 128);
+      ctx.putImageData(imgData, 0, 0);
+
+      // Clear new strip
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(254, 0, 2, 128);
+
+      // Draw Grid line on trailing edge
+      ctx.strokeStyle = '#051515';
+      ctx.lineWidth = 1;
+      for (let y = 0; y < 128; y += 16) {
+        ctx.beginPath();
+        ctx.moveTo(254, y);
+        ctx.lineTo(256, y);
+        ctx.stroke();
+      }
+
+      // Draw ECG dot
+      ctx.strokeStyle = simulationActive ? '#ff3333' : '#4488ff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+
+      s3_ecgX += 2;
+      const t = s3_ecgX % 100;
+      let y = 64; // baseline
+
+      if (!isApnea) {
+        // Simple ECG pattern modeling (P-Q-R-S-T)
+        if (t > 40 && t < 43) {
+          y = 64 - 10; // P wave
+        } else if (t >= 43 && t < 45) {
+          y = 64;
+        } else if (t === 45) {
+          y = 64 + 8;  // Q spike
+        } else if (t === 46) {
+          y = 64 - 38; // R spike
+        } else if (t === 47) {
+          y = 64 + 18; // S spike
+        } else if (t >= 48 && t < 51) {
+          y = 64;
+        } else if (t >= 51 && t < 56) {
+          y = 64 - 14; // T wave
+        }
+      } else {
+        // Apnea alert = near flatline breathing/ECG anomalies
+        if (t === 46) {
+          y = 64 - 10; // tiny flatline flutter
+        }
+      }
+
+      ctx.moveTo(254, 64); // mock hook to previous
+      ctx.lineTo(256, y);
+      ctx.stroke();
+
+      if (vitalLineMesh && vitalLineMesh.material.map) {
+        vitalLineMesh.material.map.needsUpdate = true;
+      }
+    }
+
+    // ─── INITIAL BUILD ───────────────────────────────────────────────
+    buildElderCare();
+
+    // ─── RENDER LOOP ──────────────────────────────────────────────────
+    let clock = new THREE.Clock();
+    let meshColorTimer = 0;
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const time = clock.getElapsedTime();
+
+      // Camera auto-orbit rotation
+      if (!isDragging) {
+        theta += 0.0003;
+        updateCamera();
+      }
+
+      // 1. General animations (Nodes ring pulsing)
+      torusRings.forEach((ring, idx) => {
+        const s = 1.0 + Math.sin(time * 2.0 + idx) * 0.4;
+        ring.scale.set(s, s, 1.0);
+        ring.material.opacity = Math.max(0.05, 0.4 - (s - 1.0) * 0.7);
+      });
+
+      // Point lights pulsing
+      pointLights.forEach((light) => {
+        light.intensity = 0.2 + Math.abs(Math.sin(time * 1.5)) * 0.3;
+      });
+
+      // Pulse connection mesh lines brightness
+      meshColorTimer += 0.015;
+      meshLines.forEach((lineObj, idx) => {
+        const select = Math.floor(meshColorTimer) % 6;
+        if (idx === select) {
+          lineObj.mat.color.setHex(simulationActive ? 0xff3333 : 0x00ff88);
+          lineObj.mat.opacity = 0.9;
+        } else {
+          lineObj.mat.color.setHex(0x001a00);
+          lineObj.mat.opacity = 0.3;
+        }
+      });
+
+      // 2. Scenario-specific anims
+      if (activeScenario === 'care') {
+        // Breathing
+        let freq = simulationActive ? 0.0 : 16.0; // 0 bpm if alert, 16 bpm normal
+        if (freq > 0) {
+          const breathPeriod = 60.0 / freq;
+          const breathVal = 1.0 + Math.abs(Math.sin(time * (Math.PI * 2 / breathPeriod))) * 0.06;
+          if (personGroup) {
+            const bodyMesh = personGroup.getObjectByName("body");
+            if (bodyMesh) bodyMesh.scale.set(1.0, breathVal, breathVal);
+          }
+        }
+        
+        // Red alert pulse
+        if (dangerZoneSphere) {
+          if (simulationActive) {
+            dangerZoneSphere.material.opacity = 0.15 + Math.sin(time * 6.0) * 0.08;
+          } else {
+            dangerZoneSphere.material.opacity = 0;
+          }
+        }
+
+        // CSI particles flow along Bezier curves
+        if (particlesGroup) {
+          particlesGroup.children.forEach((p) => {
+            const data = p.userData;
+            data.progress += 0.006 * (simulationActive ? 0.4 : 1.0);
+            if (data.progress > 1.0) data.progress = 0;
+            const newPos = data.curve.getPointAt(data.progress);
+            p.position.copy(newPos);
+          });
+        }
+
+      } else if (activeScenario === 'security') {
+        // Move walking figures
+        securityPeople.forEach((p) => {
+          const cfg = p.config;
+          cfg.time += cfg.speed;
+          
+          // Walking along basic path coordinates
+          const x = cfg.center.x + Math.sin(cfg.time) * cfg.range;
+          const z = cfg.center.z + Math.cos(cfg.time * 0.5) * (cfg.range * 0.6);
+          p.group.position.set(x, 0.0, z);
+
+          // Change head & body color based on zone violation
+          // Boundary is X=0. If X > 0, they are in the restricted zone
+          const inRestrictedZone = x > 0;
+          if (inRestrictedZone && !businessHours) {
+            p.head.material.color.setHex(0xff3333);
+            p.body.material.color.setHex(0xff3333);
+          } else {
+            p.head.material.color.setHex(0x00d4ff);
+            p.body.material.color.setHex(0x00d4ff);
+          }
+        });
+
+      } else if (activeScenario === 'clinical') {
+        // Breathing scaling
+        let isApnea = simulationActive;
+        let br = isApnea ? 0 : 14;
+        if (br > 0) {
+          const breathPeriod = 60.0 / br;
+          const breathVal = 1.0 + Math.abs(Math.sin(time * (Math.PI * 2 / breathPeriod))) * 0.04;
+          if (patientGroup) {
+            patientGroup.scale.set(1.0, breathVal, breathVal);
+          }
+        }
+
+        // Heart rate pulse
+        let hr = isApnea ? 42 : 72; // Bradycardia (42) when apnea alert is on
+        const hrPeriod = 60.0 / hr;
+        const hrScale = 0.5 + Math.abs(Math.sin(time * (Math.PI * 2 / hrPeriod))) * 0.8;
+        if (heartPulseMesh) {
+          heartPulseMesh.scale.set(hrScale, hrScale, hrScale);
+          heartPulseMesh.material.color.setHex(isApnea ? 0xff3333 : 0x4488ff);
+        }
+
+        // Render Waveform Canvas
+        drawECGFrame(hr, isApnea);
+      }
+
+      // 3. Project 3D Node coordinate markers to 2D HUD overlays
+      const tempV = new THREE.Vector3();
+      nodePositions.forEach((pos, idx) => {
+        tempV.copy(pos);
+        tempV.project(camera);
+        
+        const x = (tempV.x * 0.5 + 0.5) * window.innerWidth;
+        const y = (tempV.y * -0.5 + 0.5) * window.innerHeight;
+        
+        const el = document.getElementById(`node-lbl-${idx}`);
+        if (el) {
+          el.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`;
+          if (tempV.z > 1.0) {
+            el.style.display = 'none';
+          } else {
+            el.style.display = 'block';
+          }
+        }
+      });
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // ─── DYNAMIC METRICS VARIATION GENERATOR ──────────────────────────
+    setInterval(() => {
+      if (simulationActive) return;
+
+      if (activeScenario === 'care') {
+        // Tiny variations for display realism
+        const brVal = document.getElementById('val-br');
+        const hrVal = document.getElementById('val-hr');
+        if (brVal) brVal.textContent = (16 + Math.round((Math.random() - 0.5) * 2)) + ' BPM';
+        if (hrVal) hrVal.textContent = (68 + Math.round((Math.random() - 0.5) * 4)) + ' BPM';
+      } else if (activeScenario === 'clinical') {
+        const brVal = document.getElementById('val-resp');
+        const hrVal = document.getElementById('val-hr-clin');
+        if (brVal) brVal.textContent = (14 + Math.round((Math.random() - 0.5) * 2)) + ' BPM';
+        if (hrVal) hrVal.textContent = (72 + Math.round((Math.random() - 0.5) * 4)) + ' BPM';
+      }
+    }, 2500);
+
+    // ─── SCENARIO SWITCHING UTILITY ──────────────────────────────────
+    const select = document.getElementById('scenario-select');
+    const viewWrapper = document.getElementById('dashboard-view');
+
+    select.addEventListener('change', (e) => {
+      const val = e.target.value;
+      
+      // 1. Fadeout overlay
+      viewWrapper.style.opacity = 0;
+
+      setTimeout(() => {
+        activeScenario = val;
+        simulationActive = false;
+
+        // 2. Adjust colors & theme CSS variables
+        const currentTheme = themes[val];
+        document.documentElement.style.setProperty('--accent', currentTheme.accent);
+        document.documentElement.style.setProperty('--accent-alpha', currentTheme.accentAlpha);
+        document.documentElement.style.setProperty('--border-alpha', currentTheme.borderAlpha);
+
+        // 3. Clear and recreate Three.js items
+        if (val === 'care') {
+          buildElderCare();
+        } else if (val === 'security') {
+          businessHours = true;
+          buildOfficeSecurity();
+        } else if (val === 'clinical') {
+          buildClinical();
+        }
+
+        // Reset camera angles
+        theta = 0;
+        phi = Math.PI / 4;
+        radius = 13;
+        updateCamera();
+
+        // 4. Update HUD HTML content
+        renderHUDContent();
+
+        // 5. Fadein
+        viewWrapper.style.opacity = 1;
+      }, 250000 / 1000); // 250ms delay matches transitions
+    });
+
+    // ─── ALERT TOGGLE IMPLEMENTATION ─────────────────────────────────
+    function toggleSimulation() {
+      simulationActive = !simulationActive;
+      const banner = document.getElementById('alert-banner');
+
+      // Play Beep on event change
+      playBeep(simulationActive ? 400 : 800, 0.15);
+
+      if (activeScenario === 'care') {
+        if (simulationActive) {
+          banner.className = "alert-banner alert";
+          banner.textContent = "⚠ Breathing Anomaly Detected";
+          document.getElementById('sim-btn').textContent = "[ Clear Alert ]";
+          document.getElementById('status-box').textContent = "ALERT";
+          document.getElementById('status-box').style.color = "#ff3333";
+          
+          // Flash nodes red immediately
+          nodesGroup.children.forEach(n => {
+            n.children[0].material.color.setHex(0xff3333);
+            n.children[2].color.setHex(0xff3333);
+          });
+        } else {
+          banner.className = "alert-banner normal";
+          banner.textContent = "All Vitals Normal";
+          document.getElementById('sim-btn').textContent = "[ Simulate Alert ]";
+          document.getElementById('status-box').textContent = "RESTING";
+          document.getElementById('status-box').style.color = "var(--accent)";
+          
+          // Revert nodes to normal cyan
+          nodesGroup.children.forEach(n => {
+            n.children[0].material.color.setHex(0x00d4ff);
+            n.children[2].color.setHex(0x00d4ff);
+          });
+        }
+      } else if (activeScenario === 'security') {
+        const floorTint = zonesGroup.getObjectByName("floor_tint");
+        const boundaryLine = zonesGroup.getObjectByName("zone_boundary");
+        const logBox = document.getElementById('security-log');
+
+        if (simulationActive) {
+          businessHours = false;
+          banner.className = "alert-banner alert";
+          banner.textContent = "⚠ Unauthorized Presence Detected";
+          document.getElementById('sim-btn').textContent = "[ Business Hours Mode ]";
+          document.getElementById('status-box').textContent = "AFTER HOURS ALERT";
+          document.getElementById('status-box').style.color = "#ff3333";
+
+          if (floorTint) floorTint.material.color.setHex(0xff3333);
+          if (boundaryLine) boundaryLine.material.color.setHex(0xff3333);
+
+          // Append Alert Log Entry
+          const entry = document.createElement('div');
+          entry.className = "log-entry alert";
+          entry.innerHTML = `<span>13:44</span> <span>—</span> <span>Alert: Intrusion registered Zone B</span>`;
+          logBox.appendChild(entry);
+          logBox.scrollTop = logBox.scrollHeight;
+
+          // Flash nodes red
+          nodesGroup.children.forEach(n => {
+            n.children[0].material.color.setHex(0xff3333);
+            n.children[2].color.setHex(0xff3333);
+          });
+        } else {
+          businessHours = true;
+          banner.className = "alert-banner normal";
+          banner.textContent = "Security System Armed";
+          document.getElementById('sim-btn').textContent = "[ After Hours Mode ]";
+          document.getElementById('status-box').textContent = "OCCUPIED";
+          document.getElementById('status-box').style.color = "var(--accent)";
+
+          if (floorTint) floorTint.material.color.setHex(0x00ff88);
+          if (boundaryLine) boundaryLine.material.color.setHex(0x00d4ff);
+
+          // Revert nodes
+          nodesGroup.children.forEach(n => {
+            n.children[0].material.color.setHex(0x00d4ff);
+            n.children[2].color.setHex(0x00d4ff);
+          });
+        }
+      } else if (activeScenario === 'clinical') {
+        if (simulationActive) {
+          banner.className = "alert-banner alert";
+          banner.textContent = "⌛ Simulating Breathing Cessation...";
+          document.getElementById('sim-btn').textContent = "[ Revert ]";
+
+          // Start timer for Apnea beep sequence
+          setTimeout(() => {
+            if (simulationActive && activeScenario === 'clinical') {
+              banner.textContent = "⚠ Critical Alert: APNEA DETECTED — 10s";
+              document.getElementById('status-box').textContent = "CRITICAL";
+              document.getElementById('status-box').style.color = "#ff3333";
+
+              // Beep sound loops
+              const interval = setInterval(() => {
+                if (simulationActive && activeScenario === 'clinical') {
+                  playBeep(980, 0.4);
+                } else {
+                  clearInterval(interval);
+                }
+              }, 1000);
+
+              // Flash nodes blue/red
+              nodesGroup.children.forEach(n => {
+                n.children[0].material.color.setHex(0xff1111);
+                n.children[2].color.setHex(0xff1111);
+              });
+            }
+          }, 3000);
+
+        } else {
+          banner.className = "alert-banner normal";
+          banner.textContent = "All Vitals Normal";
+          document.getElementById('sim-btn').textContent = "[ Simulate Apnea ]";
+          document.getElementById('status-box').textContent = "STABLE";
+          document.getElementById('status-box').style.color = "var(--accent)";
+
+          // Revert nodes
+          nodesGroup.children.forEach(n => {
+            n.children[0].material.color.setHex(0x00d4ff);
+            n.children[2].color.setHex(0x00d4ff);
+          });
+        }
+      }
+    }
+
+    // ─── HUD TEMPLATE INJECTOR ───────────────────────────────────────
+    function renderHUDContent() {
+      const left = document.getElementById('panel-left');
+      const right = document.getElementById('panel-right');
+      const banner = document.getElementById('alert-banner');
+      const usecase = document.getElementById('panel-usecase');
+
+      if (activeScenario === 'care') {
+        banner.className = "alert-banner normal";
+        banner.textContent = "All Vitals Normal";
+
+        left.innerHTML = `
+          <h3>Patient Status</h3>
+          <div class="metrics-group">
+            <div class="metric-item">
+              <span class="metric-label">Status</span>
+              <span class="metric-value highlight" id="status-box">RESTING</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Breathing</span>
+              <span class="metric-value highlight" id="val-br">16 BPM</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Heart Rate</span>
+              <span class="metric-value" id="val-hr">68 BPM</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Last Movement</span>
+              <span class="metric-value">4 min ago</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Sleep Quality</span>
+              <span class="metric-value">DEEP SLEEP</span>
+            </div>
+          </div>
+        `;
+
+        right.innerHTML = `
+          <h3>Alert System</h3>
+          <div class="metrics-group">
+            <div class="metric-item">
+              <span class="metric-label">Fall Detection</span>
+              <span class="metric-value" style="color:#00ff88">✓ ACTIVE</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Breathing Monitor</span>
+              <span class="metric-value" style="color:#00ff88">✓ ACTIVE</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Night Wandering</span>
+              <span class="metric-value" style="color:#00ff88">✓ ACTIVE</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Emergency Desk</span>
+              <span class="metric-value">Connected</span>
+            </div>
+          </div>
+          <div class="control-actions">
+            <button class="simulate-btn" id="sim-btn" onclick="toggleSimulation()">[ Simulate Alert ]</button>
+          </div>
+        `;
+
+        usecase.innerHTML = `
+          <strong>Elder Care Scenario:</strong> Monitors elderly residents 24/7 without cameras or wearables. 
+          Detects falls, breathing changes, and sleep patterns. 
+          Alerts caregivers before situations become medical emergencies.
+        `;
+
+      } else if (activeScenario === 'security') {
+        banner.className = "alert-banner normal";
+        banner.textContent = "Security System Armed";
+
+        left.innerHTML = `
+          <h3>Occupancy Status</h3>
+          <div class="metrics-group">
+            <div class="metric-item">
+              <span class="metric-label">Security Mode</span>
+              <span class="metric-value highlight" id="status-box">OCCUPIED</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Persons Detected</span>
+              <span class="metric-value highlight">2</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Zone Violations</span>
+              <span class="metric-value">0</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Current Time</span>
+              <span class="metric-value" id="security-clock">--:--:--</span>
+            </div>
+          </div>
+        `;
+
+        // Local clock loop for security mode
+        setInterval(() => {
+          const clockEl = document.getElementById('security-clock');
+          if (clockEl) {
+            const d = new Date();
+            clockEl.textContent = d.toTimeString().split(' ')[0];
+          }
+        }, 1000);
+
+        right.innerHTML = `
+          <h3>Security Log</h3>
+          <div class="log-container" id="security-log">
+            <div class="log-entry"><span>13:14</span> <span>—</span> <span>2 persons detected, Zone A</span></div>
+            <div class="log-entry"><span>13:31</span> <span>—</span> <span>Movement, Zone B</span></div>
+            <div class="log-entry"><span>13:40</span> <span>—</span> <span>Person left Zone A</span></div>
+            <div class="log-entry"><span>13:42</span> <span>—</span> <span>All clear secure zone</span></div>
+          </div>
+          <div class="control-actions">
+            <button class="simulate-btn" id="sim-btn" onclick="toggleSimulation()">[ After Hours Mode ]</button>
+          </div>
+        `;
+
+        usecase.innerHTML = `
+          <strong>Office Security Scenario:</strong> Privacy-preserving occupancy analytics for buildings and labs.
+          Detects movement patterns and counts figures without cameras, safeguarding corporate confidentiality.
+        `;
+
+      } else if (activeScenario === 'clinical') {
+        banner.className = "alert-banner normal";
+        banner.textContent = "All Vitals Normal";
+
+        left.innerHTML = `
+          <h3>Vital Signs Monitor</h3>
+          <div class="metrics-group">
+            <div class="metric-item">
+              <span class="metric-label">Patient ID</span>
+              <span class="metric-value">BED 04</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Clinical Status</span>
+              <span class="metric-value highlight" id="status-box">STABLE</span>
+            </div>
+            <div class="metric-item" style="flex-direction:column; gap:0.2rem">
+              <div style="display:flex; justify-content:space-between; width:100%">
+                <span class="metric-label">Respiration</span>
+                <span class="metric-value highlight" id="val-resp">14 BPM</span>
+              </div>
+              <div class="range-bar"><div class="range-fill"></div></div>
+            </div>
+            <div class="metric-item" style="flex-direction:column; gap:0.2rem">
+              <div style="display:flex; justify-content:space-between; width:100%">
+                <span class="metric-label">Heart Rate</span>
+                <span class="metric-value" id="val-hr-clin">72 BPM</span>
+              </div>
+              <div class="range-bar"><div class="range-fill" style="width:72%"></div></div>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">SpO2 (Est.)</span>
+              <span class="metric-value" style="color:#666">FUTURE USE</span>
+            </div>
+          </div>
+        `;
+
+        right.innerHTML = `
+          <h3>Clinical Alerts</h3>
+          <div class="metrics-group">
+            <div class="metric-item">
+              <span class="metric-label">Apnea Detection</span>
+              <span class="metric-value" style="color:#4488ff">✓ ENABLED</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Tachycardia Alert</span>
+              <span class="metric-value" style="color:#4488ff">✓ ENABLED</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Bradycardia Alert</span>
+              <span class="metric-value" style="color:#4488ff">✓ ENABLED</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Nurse Link</span>
+              <span class="metric-value">Online</span>
+            </div>
+          </div>
+          <div class="control-actions">
+            <button class="simulate-btn" id="sim-btn" onclick="toggleSimulation()">[ Simulate Apnea ]</button>
+          </div>
+        `;
+
+        usecase.innerHTML = `
+          <strong>Clinical Ward Scenario:</strong> Continuous, non-contact respiration monitor for hospitals. 
+          Removes wires, reduces skin tearing in geriatric patients, and signals ICU desks if breathing stops.
+        `;
+      }
+    }
+
+    // Render HUD once on load
+    renderHUDContent();
+
+  </script>
+</body>
+</html>

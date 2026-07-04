@@ -1,0 +1,1539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[ CSI-MONITOR ]</title>
+<style>
+/* ── RESET ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:      #000000;
+  --text:    #ffffff;
+  --sec:     #666666;
+  --border:  #222222;
+  --green:   #00ff41;
+  --orange:  #ffaa00;
+  --red:     #ff4400;
+  --font:    'Courier New', monospace;
+}
+
+html, body {
+  width: 100%; height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  overflow: hidden;
+}
+
+/* CRT scanline */
+body::after {
+  content: '';
+  position: fixed; top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px, transparent 2px,
+    rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 3px
+  );
+}
+
+/* ── NAV BAR ───────────────────────────────────────────── */
+#navbar {
+  position: fixed; top: 0; left: 0;
+  width: 100%; height: 44px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: stretch;
+  z-index: 500;
+}
+
+#nav-brand {
+  display: flex; align-items: center;
+  padding: 0 16px;
+  font-size: 13px; font-weight: bold;
+  letter-spacing: 2px;
+  border-right: 1px solid var(--border);
+  white-space: nowrap; flex-shrink: 0;
+}
+
+#nav-tabs {
+  display: flex; align-items: stretch;
+  flex: 1;
+}
+
+.tab-btn {
+  background: none; border: none;
+  color: #444444;
+  font-family: var(--font);
+  font-size: 11px;
+  letter-spacing: 2px;
+  padding: 0 18px;
+  cursor: pointer;
+  border-right: 1px solid var(--border);
+  border-bottom: 2px solid transparent;
+  transition: color 0.1s;
+}
+.tab-btn:hover { color: #888888; }
+.tab-btn.active {
+  color: var(--text);
+  background: #111111;
+  border-bottom: 2px solid var(--text);
+}
+
+#nav-right {
+  display: flex; align-items: center;
+  gap: 8px; padding: 0 16px;
+  font-size: 11px; color: var(--sec);
+  border-left: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+#conn-dot {
+  width: 8px; height: 8px;
+  background: var(--sec);
+  display: inline-block; flex-shrink: 0;
+}
+#conn-dot.connected    { background: var(--green); animation: pulse 1.4s infinite; }
+#conn-dot.disconnected { background: var(--red); }
+#conn-dot.demo         { background: var(--orange); animation: pulse 1.4s infinite; }
+
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.25; } }
+
+#nav-center-info {
+  font-size: 11px; color: #444444;
+  letter-spacing: 1px; padding: 0 12px;
+  display: flex; align-items: center;
+  flex: 1; justify-content: center;
+}
+
+/* ── PAGES ─────────────────────────────────────────────── */
+.page {
+  position: fixed;
+  top: 44px; left: 0;
+  width: 100%; height: calc(100% - 44px);
+  display: none;
+  overflow: hidden;
+}
+.page.active { display: flex; flex-direction: column; }
+
+/* ── NO-DATA OVERLAY ───────────────────────────────────── */
+#no-data-overlay {
+  display: none;
+  position: fixed; top: 44px; left: 0;
+  width: 100%; height: calc(100% - 44px);
+  background: rgba(0,0,0,0.85);
+  z-index: 400;
+  align-items: center; justify-content: center;
+  flex-direction: column; gap: 12px;
+}
+#no-data-overlay.visible { display: flex; }
+#no-data-overlay .ndo-title { font-size: 32px; letter-spacing: 6px; color: var(--red); }
+#no-data-overlay .ndo-sub   { font-size: 11px; color: var(--sec); letter-spacing: 2px; }
+
+/* ── SHARED PANEL STYLES ───────────────────────────────── */
+.panel {
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  padding: 12px; position: relative; overflow: hidden;
+}
+.panel-label {
+  font-size: 10px; letter-spacing: 3px;
+  color: var(--sec);
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px; flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════════════
+   PAGE 1 — OVERVIEW
+═══════════════════════════════════════════════════════ */
+#page-overview {
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+#ov-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  height: 130px;
+}
+.ov-card {
+  padding: 14px 16px;
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  justify-content: space-between;
+}
+.ov-card:last-child { border-right: none; }
+.ov-card-label {
+  font-size: 9px; letter-spacing: 3px;
+  color: var(--sec);
+}
+.ov-card-value {
+  font-size: clamp(22px, 3vw, 40px);
+  font-weight: bold; letter-spacing: 2px;
+}
+
+#ov-mini-heatmap-wrap {
+  flex-shrink: 0;
+  padding: 10px 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+#ov-mini-label {
+  font-size: 9px; letter-spacing: 3px;
+  color: var(--sec); margin-bottom: 6px;
+}
+#ov-mini-heatmap {
+  width: 100%; height: 32px;
+  display: block; image-rendering: pixelated;
+}
+
+#ov-motion-wrap {
+  flex-shrink: 0;
+  padding: 10px 12px;
+}
+#ov-motion-label {
+  font-size: 9px; letter-spacing: 2px;
+  color: var(--sec); margin-bottom: 6px;
+}
+#ov-motion-track {
+  width: 100%; height: 14px;
+  background: #0a0a0a; border: 1px solid var(--border);
+  overflow: hidden;
+}
+#ov-motion-fill {
+  height: 100%; width: 0%;
+  transition: width 0.2s linear, background 0.2s linear;
+}
+
+/* ═══════════════════════════════════════════════════════
+   PAGE 2 — HEATMAP
+═══════════════════════════════════════════════════════ */
+#page-heatmap { flex-direction: column; }
+
+#heatmap-page-header {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+#heatmap-page-title { font-size: 10px; letter-spacing: 3px; color: var(--sec); }
+
+#heatmap-mode-toggle {
+  display: flex; gap: 0;
+}
+.mode-btn {
+  background: none; border: 1px solid var(--border);
+  color: #444444; font-family: var(--font);
+  font-size: 11px; letter-spacing: 2px;
+  padding: 4px 14px; cursor: pointer;
+}
+.mode-btn:first-child { border-right: none; }
+.mode-btn.active { color: var(--text); background: #111111; }
+
+#heatmap-2d-wrap {
+  flex: 1; display: flex; flex-direction: column;
+  padding: 8px 12px; overflow: hidden;
+}
+#heatmap-xaxis { height: 16px; flex-shrink: 0; margin-bottom: 2px; }
+#xaxis-canvas  { width: 100%; height: 100%; display: block; }
+#heatmap-canvas {
+  flex: 1; display: block; width: 100%;
+  image-rendering: pixelated;
+}
+#frame-counter {
+  position: absolute; bottom: 4px; right: 4px;
+  font-size: 9px; color: #333333; letter-spacing: 1px;
+}
+
+#heatmap-3d-wrap {
+  flex: 1; display: none; position: relative;
+}
+#three-canvas {
+  width: 100% !important; height: 100% !important;
+  display: block;
+}
+#three-loading {
+  position: absolute; inset: 0;
+  display: flex; align-items: center;
+  justify-content: center;
+  font-size: 11px; letter-spacing: 3px; color: var(--sec);
+}
+
+/* ═══════════════════════════════════════════════════════
+   PAGE 3 — RADAR
+═══════════════════════════════════════════════════════ */
+#page-radar { flex-direction: row; }
+
+#radar-canvas-wrap {
+  flex: 1; position: relative; overflow: hidden;
+  border-right: 1px solid var(--border);
+}
+#radar-canvas { width: 100%; height: 100%; display: block; }
+
+#radar-legend {
+  width: 220px; flex-shrink: 0;
+  padding: 16px 14px;
+  display: flex; flex-direction: column; gap: 0;
+  overflow-y: auto;
+}
+.radar-legend-title {
+  font-size: 9px; letter-spacing: 3px;
+  color: var(--sec); margin-bottom: 16px;
+}
+.legend-zone {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.legend-zone-name {
+  font-size: 10px; letter-spacing: 2px; margin-bottom: 4px;
+}
+.legend-zone-desc {
+  font-size: 9px; color: var(--sec); letter-spacing: 1px;
+}
+#radar-bottom-note {
+  margin-top: auto; padding-top: 16px;
+  font-size: 8px; color: #333333; letter-spacing: 1px;
+  line-height: 1.7;
+}
+
+/* ═══════════════════════════════════════════════════════
+   PAGE 4 — VITALS
+═══════════════════════════════════════════════════════ */
+#page-vitals { flex-direction: column; }
+
+#vitals-banner {
+  padding: 8px 16px; flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px; letter-spacing: 2px;
+  text-align: center;
+}
+
+#vitals-body {
+  flex: 1; display: flex; flex-direction: column;
+  overflow: hidden;
+}
+
+#vitals-br-section {
+  flex: 1; display: flex; flex-direction: column;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+}
+#vitals-br-label {
+  font-size: 9px; letter-spacing: 3px;
+  color: var(--sec); margin-bottom: 8px; flex-shrink: 0;
+}
+#vitals-br-giant {
+  font-size: clamp(48px, 8vw, 96px);
+  font-weight: bold; letter-spacing: 4px;
+  flex-shrink: 0; line-height: 1;
+}
+#vitals-br-unit-label {
+  font-size: 13px; color: var(--sec);
+  letter-spacing: 2px; margin-bottom: 12px; flex-shrink: 0;
+}
+#vitals-br-range {
+  font-size: 9px; color: var(--sec);
+  letter-spacing: 1px; margin-bottom: 8px; flex-shrink: 0;
+}
+#vitals-wave-canvas {
+  flex: 0 0 80px; width: 100%; display: block;
+  border: 1px solid var(--border); margin-bottom: 8px;
+}
+#vitals-br-history-canvas {
+  flex: 1; width: 100%; display: block;
+  border: 1px solid var(--border); min-height: 60px;
+}
+
+#vitals-hr-section {
+  flex-shrink: 0;
+  padding: 12px 16px; height: 130px;
+  display: flex; flex-direction: column; justify-content: center;
+}
+#vitals-hr-label {
+  font-size: 9px; letter-spacing: 3px;
+  color: #333333; margin-bottom: 6px;
+}
+#vitals-hr-note {
+  font-size: 10px; color: #333333;
+  letter-spacing: 1px; line-height: 1.7;
+}
+#vitals-flatline-canvas {
+  width: 100%; height: 28px; display: block;
+  margin-top: 8px;
+}
+
+/* ═══════════════════════════════════════════════════════
+   PAGE 5 — SIGNAL
+═══════════════════════════════════════════════════════ */
+#page-signal { flex-direction: row; }
+
+#signal-left {
+  width: 320px; flex-shrink: 0;
+  display: flex; flex-direction: column;
+  border-right: 1px solid var(--border);
+  padding: 14px;
+  overflow-y: auto;
+}
+#signal-right {
+  flex: 1; display: flex; flex-direction: column;
+  padding: 14px; overflow: hidden;
+}
+
+.sig-section-label {
+  font-size: 9px; letter-spacing: 3px;
+  color: var(--sec); margin-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+}
+#sig-rssi-value {
+  font-size: clamp(32px, 4vw, 52px);
+  font-weight: bold; letter-spacing: 2px;
+  margin-bottom: 6px;
+}
+#sig-rssi-unit { font-size: 12px; color: var(--sec); }
+#sig-bar-track {
+  width: 100%; height: 10px;
+  background: #0a0a0a; border: 1px solid var(--border);
+  overflow: hidden; margin-bottom: 18px;
+}
+#sig-bar-fill {
+  height: 100%; width: 0%;
+  transition: width 0.3s, background 0.3s;
+}
+
+.sig-row {
+  display: flex; align-items: center;
+  gap: 8px; margin-bottom: 10px;
+}
+#sig-conn-dot {
+  width: 8px; height: 8px; flex-shrink: 0;
+}
+#sig-conn-dot.connected    { background: var(--green); animation: pulse 1.4s infinite; }
+#sig-conn-dot.disconnected { background: var(--red); }
+#sig-conn-dot.demo         { background: var(--orange); animation: pulse 1.4s infinite; }
+
+#sig-conn-text { font-size: 12px; letter-spacing: 2px; }
+
+.sig-stat-row {
+  display: flex; justify-content: space-between;
+  font-size: 10px; margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+.sig-stat-key { color: var(--sec); }
+.sig-stat-val { color: var(--text); }
+
+#sig-raw-label {
+  font-size: 9px; letter-spacing: 3px; color: var(--sec);
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border); padding-bottom: 6px;
+  flex-shrink: 0;
+}
+#sig-raw-json {
+  flex: 1;
+  background: #000000;
+  border: 1px solid var(--border);
+  padding: 10px;
+  font-size: 10px; color: #003300; letter-spacing: 0.5px;
+  overflow-y: auto; line-height: 1.6;
+  white-space: pre-wrap; word-break: break-all;
+}
+</style>
+</head>
+<body>
+
+<!-- ── NAV BAR ──────────────────────────────────────────── -->
+<div id="navbar">
+  <div id="nav-brand">[ CSI-MONITOR ]</div>
+  <div id="nav-tabs">
+    <button class="tab-btn active" data-page="overview">OVERVIEW</button>
+    <button class="tab-btn" data-page="heatmap">HEATMAP</button>
+    <button class="tab-btn" data-page="radar">RADAR</button>
+    <button class="tab-btn" data-page="vitals">VITALS</button>
+    <button class="tab-btn" data-page="signal">SIGNAL</button>
+  </div>
+  <div id="nav-center-info">ESP32-S3 // 10.43.135.83</div>
+  <div id="nav-right">
+    <span id="conn-dot" class="disconnected"></span>
+    <span id="conn-status-text">CONNECTING...</span>
+  </div>
+</div>
+
+<!-- ── NO DATA OVERLAY ─────────────────────────────────── -->
+<div id="no-data-overlay">
+  <span class="ndo-title">NO DATA</span>
+  <span class="ndo-sub">WAITING FOR ESP32 STREAM...</span>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     PAGE 1: OVERVIEW
+══════════════════════════════════════════════════════ -->
+<div class="page active" id="page-overview">
+  <div id="ov-cards">
+    <div class="ov-card">
+      <div class="ov-card-label">PRESENCE</div>
+      <div class="ov-card-value" id="ov-presence" style="color:#ffffff;">EMPTY</div>
+    </div>
+    <div class="ov-card">
+      <div class="ov-card-label">OCCUPANTS</div>
+      <div class="ov-card-value" id="ov-count" style="color:#ffffff;">0</div>
+    </div>
+    <div class="ov-card">
+      <div class="ov-card-label">BREATHING</div>
+      <div class="ov-card-value" id="ov-br" style="color:#666666;">-- <span style="font-size:14px;color:#666666;">BPM</span></div>
+    </div>
+    <div class="ov-card" style="border-right:none;">
+      <div class="ov-card-label">RSSI</div>
+      <div class="ov-card-value" id="ov-rssi" style="color:#666666;">--- <span style="font-size:14px;color:#666666;">dBm</span></div>
+    </div>
+  </div>
+  <div id="ov-mini-heatmap-wrap">
+    <div id="ov-mini-label">LATEST SUBCARRIER FRAME</div>
+    <canvas id="ov-mini-heatmap"></canvas>
+  </div>
+  <div id="ov-motion-wrap">
+    <div id="ov-motion-label">MOTION SCORE &nbsp;<span id="ov-motion-val">0.00</span></div>
+    <div id="ov-motion-track">
+      <div id="ov-motion-fill"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     PAGE 2: HEATMAP
+══════════════════════════════════════════════════════ -->
+<div class="page" id="page-heatmap">
+  <div id="heatmap-page-header">
+    <span id="heatmap-page-title">CSI SUBCARRIER WATERFALL</span>
+    <div id="heatmap-mode-toggle">
+      <button class="mode-btn active" id="btn-2d">2D</button>
+      <button class="mode-btn" id="btn-3d">3D</button>
+    </div>
+  </div>
+
+  <!-- 2D view -->
+  <div id="heatmap-2d-wrap">
+    <div id="heatmap-xaxis"><canvas id="xaxis-canvas"></canvas></div>
+    <canvas id="heatmap-canvas"></canvas>
+    <div id="frame-counter">FRAME: 0</div>
+  </div>
+
+  <!-- 3D view -->
+  <div id="heatmap-3d-wrap">
+    <div id="three-loading">LOADING THREE.JS...</div>
+    <canvas id="three-canvas"></canvas>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     PAGE 3: RADAR
+══════════════════════════════════════════════════════ -->
+<div class="page" id="page-radar">
+  <div id="radar-canvas-wrap">
+    <canvas id="radar-canvas"></canvas>
+  </div>
+  <div id="radar-legend">
+    <div class="radar-legend-title">ZONE MAP</div>
+    <div class="legend-zone">
+      <div class="legend-zone-name" style="color:#00ff41;">● 0 – 3M</div>
+      <div class="legend-zone-desc">VITALS DETECTION<br>Breathing rate available</div>
+    </div>
+    <div class="legend-zone">
+      <div class="legend-zone-name" style="color:#ffaa00;">● 3 – 6M</div>
+      <div class="legend-zone-desc">PRESENCE ONLY<br>No vitals at this range</div>
+    </div>
+    <div class="legend-zone" style="border-bottom:none;">
+      <div class="legend-zone-name" style="color:#333333;">● 6M+</div>
+      <div class="legend-zone-desc">OUT OF RANGE<br>Signal too weak</div>
+    </div>
+    <div id="radar-bottom-note">
+      SENSING RADIUS: ~6M<br><br>
+      NOTE: POSITION IS ESTIMATED<br>
+      FROM RSSI. EXACT LOCATION<br>
+      REQUIRES MULTI-NODE SETUP.
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     PAGE 4: VITALS
+══════════════════════════════════════════════════════ -->
+<div class="page" id="page-vitals">
+  <div id="vitals-banner">—</div>
+  <div id="vitals-body">
+    <div id="vitals-br-section">
+      <div id="vitals-br-label">BREATHING RATE</div>
+      <div id="vitals-br-giant" style="color:#666666;">--</div>
+      <div id="vitals-br-unit-label">BPM &nbsp;&nbsp; NORMAL: 12–20 BPM</div>
+      <canvas id="vitals-wave-canvas"></canvas>
+      <canvas id="vitals-br-history-canvas"></canvas>
+    </div>
+    <div id="vitals-hr-section">
+      <div id="vitals-hr-label">HEART RATE — COMING IN V2</div>
+      <div id="vitals-hr-note">HR extraction requires longer FFT window.<br>Planned for next firmware update.</div>
+      <canvas id="vitals-flatline-canvas"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     PAGE 5: SIGNAL
+══════════════════════════════════════════════════════ -->
+<div class="page" id="page-signal">
+  <div id="signal-left">
+    <div class="sig-section-label">SIGNAL QUALITY</div>
+    <div id="sig-rssi-value" style="color:#666666;">---<span id="sig-rssi-unit"> dBm</span></div>
+    <div id="sig-bar-track"><div id="sig-bar-fill" style="background:#333333;"></div></div>
+
+    <div class="sig-row">
+      <div id="sig-conn-dot" class="disconnected"></div>
+      <span id="sig-conn-text" style="color:#666666;">DISCONNECTED</span>
+    </div>
+
+    <div class="sig-stat-row">
+      <span class="sig-stat-key">LAST MSG</span>
+      <span class="sig-stat-val" id="sig-last-msg">--</span>
+    </div>
+    <div class="sig-stat-row">
+      <span class="sig-stat-key">PKT RATE</span>
+      <span class="sig-stat-val" id="sig-pkt-rate">0 fps</span>
+    </div>
+    <div class="sig-stat-row">
+      <span class="sig-stat-key">UPTIME</span>
+      <span class="sig-stat-val" id="sig-uptime">--</span>
+    </div>
+    <div class="sig-stat-row">
+      <span class="sig-stat-key">TOTAL FRAMES</span>
+      <span class="sig-stat-val" id="sig-total-frames">0</span>
+    </div>
+  </div>
+  <div id="signal-right">
+    <div id="sig-raw-label">LAST RECEIVED MESSAGE</div>
+    <pre id="sig-raw-json">-- WAITING FOR DATA --</pre>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ══════════════════════════════════════════════════════
+     CONFIG (unchanged from original)
+  ══════════════════════════════════════════════════════ */
+  const WS_URL           = 'ws://10.43.135.83/ws';
+  const RECONNECT_MS     = 3000;
+  const DEMO_FALLBACK_MS = 5000;
+  const NUM_SUBS         = 64;
+  const HEATMAP_ROWS     = 80;
+  const BR_HISTORY_LEN   = 120;
+
+  /* ══════════════════════════════════════════════════════
+     STATE
+  ══════════════════════════════════════════════════════ */
+  let ws             = null;
+  let isDemo         = false;
+  let isConnected    = false;
+  let frameCount     = 0;
+  let lastMsgTime    = 0;
+  let demoTimer      = null;
+  let reconnectTimer = null;
+  let fallbackTimer  = null;
+  let demoTick       = 0;
+  let demoPhase      = 0;
+  let demoPhaseTimer = 0;
+  let wsConnectedAt  = 0;
+  let fpsCounter     = 0;
+  let fpsValue       = 0;
+
+  const brHistoryFull = new Array(BR_HISTORY_LEN).fill(0);
+  let lastSubs        = new Array(NUM_SUBS).fill(0);
+  let lastData        = null;
+
+  /* heatmap pixel buffer */
+  let heatImageData = null;
+  let heatPixels    = null;
+
+  /* Three.js 3D */
+  let threeLoaded   = false;
+  let threeRenderer = null;
+  let threeScene    = null;
+  let threeCamera   = null;
+  let threeMesh     = null;
+  let threeAnimId   = null;
+  let threeMouseDown = false;
+  let threePrevMouse = { x: 0, y: 0 };
+  let threeAutoRot  = 0;
+  /* ring buffer for 3D — last 40 frames of subcarriers */
+  const ROWS_3D     = 40;
+  const frameBuffer3D = [];
+  for (let i = 0; i < ROWS_3D; i++) frameBuffer3D.push(new Float32Array(NUM_SUBS));
+  let frame3DHead   = 0;
+
+  /* radar */
+  let radarAnimId   = null;
+  let pulseList     = [];
+
+  /* vitals wave */
+  let vitalsWaveAnimId = null;
+  let vitalsWaveT      = 0;
+
+  /* flatline */
+  let flatlineAnimId = null;
+  let flatlineT      = 0;
+
+  /* br vitals history */
+  const brVitalsHistory = new Array(BR_HISTORY_LEN).fill(0);
+
+  /* ══════════════════════════════════════════════════════
+     NAV / TAB SYSTEM
+  ══════════════════════════════════════════════════════ */
+  let activePage = 'overview';
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchPage(btn.dataset.page));
+  });
+
+  function switchPage(name) {
+    if (activePage === name) return;
+
+    // hide old
+    stopPageAnimations(activePage);
+    document.getElementById('page-' + activePage).classList.remove('active');
+    document.querySelector('.tab-btn[data-page="' + activePage + '"]').classList.remove('active');
+
+    activePage = name;
+
+    document.getElementById('page-' + name).classList.add('active');
+    document.querySelector('.tab-btn[data-page="' + name + '"]').classList.add('active');
+
+    startPageAnimations(name);
+    // re-size canvases after layout settles
+    requestAnimationFrame(() => { requestAnimationFrame(resizeAll); });
+  }
+
+  function stopPageAnimations(name) {
+    if (name === 'radar')  { if (radarAnimId)      { cancelAnimationFrame(radarAnimId);      radarAnimId      = null; } }
+    if (name === 'vitals') {
+      if (vitalsWaveAnimId){ cancelAnimationFrame(vitalsWaveAnimId); vitalsWaveAnimId = null; }
+      if (flatlineAnimId)  { cancelAnimationFrame(flatlineAnimId);   flatlineAnimId   = null; }
+    }
+    if (name === 'heatmap' && threeRenderer) stop3D();
+  }
+
+  function startPageAnimations(name) {
+    if (name === 'radar')  animateRadar();
+    if (name === 'vitals') { animateVitalsWave(); animateFlatline(); }
+    if (name === 'heatmap' && currentHeatmapMode === '3d' && threeLoaded) start3DRender();
+  }
+
+  /* ══════════════════════════════════════════════════════
+     DOM REFS
+  ══════════════════════════════════════════════════════ */
+  const connDot        = document.getElementById('conn-dot');
+  const connStatusText = document.getElementById('conn-status-text');
+  const navCenterInfo  = document.getElementById('nav-center-info');
+  const noDataOverlay  = document.getElementById('no-data-overlay');
+
+  /* overview */
+  const ovPresence = document.getElementById('ov-presence');
+  const ovCount    = document.getElementById('ov-count');
+  const ovBr       = document.getElementById('ov-br');
+  const ovRssi     = document.getElementById('ov-rssi');
+  const ovMotionVal  = document.getElementById('ov-motion-val');
+  const ovMotionFill = document.getElementById('ov-motion-fill');
+  const ovMiniHeatmap= document.getElementById('ov-mini-heatmap');
+
+  /* heatmap */
+  const heatCanvas  = document.getElementById('heatmap-canvas');
+  const heatCtx     = heatCanvas.getContext('2d');
+  const xaxisCanvas = document.getElementById('xaxis-canvas');
+  const xaxisCtx    = xaxisCanvas.getContext('2d');
+  const frameCounterEl = document.getElementById('frame-counter');
+  const wrap2D      = document.getElementById('heatmap-2d-wrap');
+  const wrap3D      = document.getElementById('heatmap-3d-wrap');
+  const threeCanvas = document.getElementById('three-canvas');
+  const threeLoading= document.getElementById('three-loading');
+
+  /* signal */
+  const sigRssiVal   = document.getElementById('sig-rssi-value');
+  const sigBarFill   = document.getElementById('sig-bar-fill');
+  const sigConnDot   = document.getElementById('sig-conn-dot');
+  const sigConnText  = document.getElementById('sig-conn-text');
+  const sigLastMsg   = document.getElementById('sig-last-msg');
+  const sigPktRate   = document.getElementById('sig-pkt-rate');
+  const sigUptime    = document.getElementById('sig-uptime');
+  const sigTotalFrames = document.getElementById('sig-total-frames');
+  const sigRawJson   = document.getElementById('sig-raw-json');
+
+  /* vitals */
+  const vitalsBanner   = document.getElementById('vitals-banner');
+  const vitalsBrGiant  = document.getElementById('vitals-br-giant');
+  const vitalsWaveCanvas  = document.getElementById('vitals-wave-canvas');
+  const vitalsWaveCtx     = vitalsWaveCanvas.getContext('2d');
+  const vitalsHistCanvas  = document.getElementById('vitals-br-history-canvas');
+  const vitalsHistCtx     = vitalsHistCanvas.getContext('2d');
+  const vitalsFlatCanvas  = document.getElementById('vitals-flatline-canvas');
+  const vitalsFlatCtx     = vitalsFlatCanvas.getContext('2d');
+
+  /* ══════════════════════════════════════════════════════
+     COLOR HELPERS
+  ══════════════════════════════════════════════════════ */
+  function ampToColor(v) {
+    if (v < 4)  return [0, 0, 0];
+    if (v < 8)  return [0, 51, 0];
+    if (v < 12) return [0, 170, 0];
+    if (v < 16) return [255, 170, 0];
+    if (v < 20) return [255, 68, 0];
+    return [255, 0, 0];
+  }
+
+  function ampToHex(v) {
+    const [r, g, b] = ampToColor(v);
+    return 'rgb(' + r + ',' + g + ',' + b + ')';
+  }
+
+  function rssiColor(rssi) {
+    if (rssi > -50)      return '#00ff41';
+    else if (rssi > -70) return '#ffaa00';
+    return '#ff4400';
+  }
+
+  /* ══════════════════════════════════════════════════════
+     HEATMAP 2D
+  ══════════════════════════════════════════════════════ */
+  function initHeatmap() {
+    heatCanvas.width  = NUM_SUBS;
+    heatCanvas.height = HEATMAP_ROWS;
+    heatImageData     = heatCtx.createImageData(NUM_SUBS, HEATMAP_ROWS);
+    heatPixels        = heatImageData.data;
+    for (let i = 0; i < heatPixels.length; i += 4) {
+      heatPixels[i] = heatPixels[i+1] = heatPixels[i+2] = 0;
+      heatPixels[i+3] = 255;
+    }
+    heatCtx.putImageData(heatImageData, 0, 0);
+  }
+
+  function pushHeatmapRow(subs) {
+    const rowBytes   = NUM_SUBS * 4;
+    const totalBytes = NUM_SUBS * HEATMAP_ROWS * 4;
+    heatPixels.copyWithin(rowBytes, 0, totalBytes - rowBytes);
+    for (let s = 0; s < NUM_SUBS; s++) {
+      const [r, g, b] = ampToColor(subs[s] || 0);
+      const px = s * 4;
+      heatPixels[px]   = r;
+      heatPixels[px+1] = g;
+      heatPixels[px+2] = b;
+      heatPixels[px+3] = 255;
+    }
+    heatCtx.putImageData(heatImageData, 0, 0);
+
+    // Store in 3D ring buffer
+    frameBuffer3D[frame3DHead].set(subs.slice(0, NUM_SUBS));
+    frame3DHead = (frame3DHead + 1) % ROWS_3D;
+  }
+
+  function drawXAxis() {
+    const xEl = document.getElementById('heatmap-xaxis');
+    xaxisCanvas.width  = xEl.offsetWidth || 600;
+    xaxisCanvas.height = 16;
+    xaxisCtx.clearRect(0, 0, xaxisCanvas.width, xaxisCanvas.height);
+    xaxisCtx.fillStyle    = '#333333';
+    xaxisCtx.font         = '8px Courier New, monospace';
+    xaxisCtx.textBaseline = 'top';
+    const step = xaxisCanvas.width / NUM_SUBS;
+    for (let s = 0; s < NUM_SUBS; s += 8) xaxisCtx.fillText(s, s * step, 2);
+  }
+
+  /* ══════════════════════════════════════════════════════
+     MINI HEATMAP (overview)
+  ══════════════════════════════════════════════════════ */
+  function drawMiniHeatmap(subs) {
+    const W = ovMiniHeatmap.width;
+    const H = ovMiniHeatmap.height;
+    if (!W || !H) return;
+    const ctx = ovMiniHeatmap.getContext('2d');
+    const cellW = W / NUM_SUBS;
+    for (let s = 0; s < NUM_SUBS; s++) {
+      ctx.fillStyle = ampToHex(subs[s] || 0);
+      ctx.fillRect(Math.floor(s * cellW), 0, Math.ceil(cellW) + 1, H);
+    }
+  }
+
+  /* ══════════════════════════════════════════════════════
+     HEATMAP MODE TOGGLE (2D / 3D)
+  ══════════════════════════════════════════════════════ */
+  let currentHeatmapMode = '2d';
+
+  document.getElementById('btn-2d').addEventListener('click', () => setHeatmapMode('2d'));
+  document.getElementById('btn-3d').addEventListener('click', () => setHeatmapMode('3d'));
+
+  function setHeatmapMode(mode) {
+    currentHeatmapMode = mode;
+    document.getElementById('btn-2d').classList.toggle('active', mode === '2d');
+    document.getElementById('btn-3d').classList.toggle('active', mode === '3d');
+
+    if (mode === '2d') {
+      wrap2D.style.display = 'flex';
+      wrap3D.style.display = 'none';
+      stop3D();
+    } else {
+      wrap2D.style.display = 'none';
+      wrap3D.style.display = 'block';
+      loadAndStart3D();
+    }
+  }
+
+  /* ══════════════════════════════════════════════════════
+     THREE.JS 3D HEATMAP
+  ══════════════════════════════════════════════════════ */
+  function loadAndStart3D() {
+    if (threeLoaded) { start3DRender(); return; }
+    threeLoading.style.display = 'flex';
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+    s.onload = () => { threeLoaded = true; init3D(); threeLoading.style.display = 'none'; start3DRender(); };
+    s.onerror = () => { threeLoading.textContent = 'FAILED TO LOAD THREE.JS'; };
+    document.head.appendChild(s);
+  }
+
+  function init3D() {
+    const W = wrap3D.clientWidth  || 800;
+    const H = wrap3D.clientHeight || 500;
+
+    threeScene    = new THREE.Scene();
+    threeCamera   = new THREE.PerspectiveCamera(55, W / H, 0.1, 1000);
+    threeCamera.position.set(32, 60, 80);
+    threeCamera.lookAt(32, 0, 20);
+
+    threeRenderer = new THREE.WebGLRenderer({ canvas: threeCanvas, antialias: false });
+    threeRenderer.setSize(W, H);
+    threeRenderer.setClearColor(0x000000);
+
+    // Lights
+    const ambient = new THREE.AmbientLight(0x333333);
+    threeScene.add(ambient);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(20, 60, 40);
+    threeScene.add(dirLight);
+
+    // Geometry: 64 cols x 40 rows
+    const geo = new THREE.PlaneGeometry(NUM_SUBS - 1, ROWS_3D - 1, NUM_SUBS - 1, ROWS_3D - 1);
+    geo.rotateX(-Math.PI / 2);
+
+    // Vertex colors
+    const colors = [];
+    const posArr = geo.attributes.position;
+    for (let i = 0; i < posArr.count; i++) colors.push(0, 0.2, 0);
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+    const mat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+    threeMesh = new THREE.Mesh(geo, mat);
+    threeMesh.position.set(0, 0, 0);
+    threeScene.add(threeMesh);
+
+    // Mouse drag
+    threeCanvas.addEventListener('mousedown', e => { threeMouseDown = true; threePrevMouse = { x: e.clientX, y: e.clientY }; });
+    window.addEventListener('mouseup',   () => { threeMouseDown = false; });
+    window.addEventListener('mousemove', e => {
+      if (!threeMouseDown) return;
+      const dx = e.clientX - threePrevMouse.x;
+      threePrevMouse = { x: e.clientX, y: e.clientY };
+      threeAutoRot += dx * 0.005;
+    });
+  }
+
+  function update3DMesh() {
+    if (!threeMesh) return;
+    const posArr  = threeMesh.geometry.attributes.position;
+    const colArr  = threeMesh.geometry.attributes.color;
+
+    for (let row = 0; row < ROWS_3D; row++) {
+      const bufRow = (frame3DHead - 1 - row + ROWS_3D) % ROWS_3D;
+      const subs   = frameBuffer3D[bufRow];
+      for (let col = 0; col < NUM_SUBS; col++) {
+        const idx = row * NUM_SUBS + col;
+        const amp = subs[col] || 0;
+        posArr.setY(idx, amp * 1.5);
+        const [r, g, b] = ampToColor(amp);
+        colArr.setXYZ(idx, r / 255, g / 255, b / 255);
+      }
+    }
+    posArr.needsUpdate = true;
+    colArr.needsUpdate = true;
+    threeMesh.geometry.computeVertexNormals();
+  }
+
+  function start3DRender() {
+    if (!threeRenderer || threeAnimId) return;
+    function loop() {
+      threeAnimId = requestAnimationFrame(loop);
+      threeAutoRot += 0.002;
+      const R = 80;
+      threeCamera.position.x = 32 + R * Math.sin(threeAutoRot);
+      threeCamera.position.z = R * Math.cos(threeAutoRot);
+      threeCamera.position.y = 60;
+      threeCamera.lookAt(32, 0, 20);
+      update3DMesh();
+      threeRenderer.render(threeScene, threeCamera);
+    }
+    loop();
+  }
+
+  function stop3D() {
+    if (threeAnimId) { cancelAnimationFrame(threeAnimId); threeAnimId = null; }
+  }
+
+  /* ══════════════════════════════════════════════════════
+     RADAR
+  ══════════════════════════════════════════════════════ */
+  const radarCanvas = document.getElementById('radar-canvas');
+  const radarCtx    = radarCanvas.getContext('2d');
+
+  function animateRadar() {
+    // Seed initial pulses
+    if (pulseList.length === 0) {
+      pulseList.push({ r: 0, age: 0 }, { r: 0, age: -60 }, { r: 0, age: -120 });
+    }
+    function loop() {
+      radarAnimId = requestAnimationFrame(loop);
+      drawRadar();
+    }
+    loop();
+  }
+
+  function drawRadar() {
+    const W  = radarCanvas.width;
+    const H  = radarCanvas.height;
+    if (!W || !H) return;
+    const cx = W / 2;
+    const cy = H / 2;
+    const maxR = Math.min(cx, cy) * 0.85;
+    const mPerPx = 6 / maxR; // 6m maps to maxR pixels
+    const r1px   = maxR * (1 / 6);
+    const r3px   = maxR * (3 / 6);
+    const r6px   = maxR;
+
+    radarCtx.fillStyle = '#000000';
+    radarCtx.fillRect(0, 0, W, H);
+
+    // Zone fills
+    const fillZone = (r, color) => {
+      radarCtx.beginPath();
+      radarCtx.arc(cx, cy, r, 0, Math.PI * 2);
+      radarCtx.fillStyle = color;
+      radarCtx.fill();
+    };
+    fillZone(r6px, '#001200');
+    fillZone(r3px, '#001a00');
+    fillZone(r1px, '#002200');
+
+    // Zone ring strokes
+    const strokeRing = (r, color, label) => {
+      radarCtx.beginPath();
+      radarCtx.arc(cx, cy, r, 0, Math.PI * 2);
+      radarCtx.strokeStyle = color;
+      radarCtx.lineWidth   = 1;
+      radarCtx.stroke();
+      if (label) {
+        radarCtx.fillStyle = color;
+        radarCtx.font = '10px Courier New, monospace';
+        radarCtx.textBaseline = 'middle';
+        radarCtx.fillText(label, cx + r + 4, cy);
+      }
+    };
+    strokeRing(r1px, '#004400', '1M');
+    strokeRing(r3px, '#006600', '3M VITALS ZONE');
+    strokeRing(r6px, '#003300', '6M PRESENCE ONLY');
+
+    // Cross hairs
+    radarCtx.strokeStyle = '#111111';
+    radarCtx.lineWidth   = 1;
+    radarCtx.setLineDash([4, 8]);
+    radarCtx.beginPath(); radarCtx.moveTo(cx, cy - maxR - 4); radarCtx.lineTo(cx, cy + maxR + 4); radarCtx.stroke();
+    radarCtx.beginPath(); radarCtx.moveTo(cx - maxR - 4, cy); radarCtx.lineTo(cx + maxR + 4, cy); radarCtx.stroke();
+    radarCtx.setLineDash([]);
+
+    // Pulses
+    for (let p of pulseList) {
+      p.age++;
+      p.r = (p.age / 120) * maxR;
+      if (p.age > 120) p.age = 0;
+      if (p.r <= 0) continue;
+      const alpha = Math.max(0, 1 - p.r / maxR);
+      radarCtx.beginPath();
+      radarCtx.arc(cx, cy, p.r, 0, Math.PI * 2);
+      radarCtx.strokeStyle = 'rgba(0,255,65,' + (alpha * 0.6) + ')';
+      radarCtx.lineWidth   = 2;
+      radarCtx.stroke();
+    }
+
+    // ESP32 node
+    radarCtx.fillStyle = '#ffffff';
+    radarCtx.fillRect(cx - 6, cy - 6, 12, 12);
+    radarCtx.fillStyle = '#444444';
+    radarCtx.font = '8px Courier New, monospace';
+    radarCtx.textAlign = 'center';
+    radarCtx.fillText('ESP32-S3', cx, cy + 18);
+
+    // Subjects
+    const presence = lastData ? lastData.presence : 'EMPTY';
+    const rssi     = lastData ? (lastData.rssi || -60) : -60;
+
+    if (presence !== 'EMPTY') {
+      const dist = Math.min(Math.max((-30 - rssi) / 50, 0.1), 0.95);
+      const subR = dist * maxR;
+      const angle1 = -Math.PI / 4;
+      const sx1 = cx + subR * Math.cos(angle1);
+      const sy1 = cy + subR * Math.sin(angle1);
+      drawSubject(sx1, sy1, 'SUBJECT // RSSI: ' + rssi + ' dBm', 1);
+
+      if (presence === 'MULTI') {
+        const angle2 = Math.PI / 6;
+        const subR2  = dist * maxR * 1.3;
+        const sx2    = cx + subR2 * Math.cos(angle2);
+        const sy2    = cy + subR2 * Math.sin(angle2);
+        drawSubject(sx2, sy2, 'SUBJECT 2', 2);
+      }
+    }
+
+    radarCtx.textAlign = 'left';
+  }
+
+  function drawSubject(x, y, label, idx) {
+    const t    = Date.now() / 500;
+    const glow = 0.5 + 0.5 * Math.sin(t);
+    // Outer glow
+    radarCtx.beginPath();
+    radarCtx.arc(x, y, 12, 0, Math.PI * 2);
+    radarCtx.fillStyle = 'rgba(0,255,65,' + (glow * 0.2) + ')';
+    radarCtx.fill();
+    // Dot
+    radarCtx.beginPath();
+    radarCtx.arc(x, y, 5, 0, Math.PI * 2);
+    radarCtx.fillStyle = '#00ff41';
+    radarCtx.fill();
+    // Label
+    radarCtx.fillStyle = '#00ff41';
+    radarCtx.font = '9px Courier New, monospace';
+    radarCtx.fillText(label, x + 10, y - 8);
+  }
+
+  /* ══════════════════════════════════════════════════════
+     VITALS — BREATHING WAVE
+  ══════════════════════════════════════════════════════ */
+  function animateVitalsWave() {
+    function loop() {
+      vitalsWaveAnimId = requestAnimationFrame(loop);
+      drawVitalsWave();
+    }
+    loop();
+  }
+
+  function drawVitalsWave() {
+    const W = vitalsWaveCanvas.width;
+    const H = vitalsWaveCanvas.height;
+    if (!W || !H) return;
+    const bpm  = lastData ? (lastData.br_bpm || 0) : 0;
+    const freq = bpm > 0 ? (bpm / 60) : 0.25;
+    vitalsWaveT += 0.016;
+
+    vitalsWaveCtx.fillStyle = '#000000';
+    vitalsWaveCtx.fillRect(0, 0, W, H);
+
+    if (bpm === 0) {
+      vitalsWaveCtx.strokeStyle = '#222222';
+      vitalsWaveCtx.lineWidth   = 1;
+      vitalsWaveCtx.beginPath();
+      vitalsWaveCtx.moveTo(0, H / 2);
+      vitalsWaveCtx.lineTo(W, H / 2);
+      vitalsWaveCtx.stroke();
+      return;
+    }
+
+    const amp = H * 0.35;
+    vitalsWaveCtx.strokeStyle = '#00ff41';
+    vitalsWaveCtx.lineWidth   = 2;
+    vitalsWaveCtx.beginPath();
+    for (let px = 0; px < W; px++) {
+      const t = (px / W) * 3;
+      const y = H / 2 - amp * Math.sin(2 * Math.PI * (freq * t - vitalsWaveT));
+      if (px === 0) vitalsWaveCtx.moveTo(px, y);
+      else          vitalsWaveCtx.lineTo(px, y);
+    }
+    vitalsWaveCtx.stroke();
+  }
+
+  /* vitals BR history chart */
+  function drawVitalsHistChart() {
+    const W = vitalsHistCanvas.width;
+    const H = vitalsHistCanvas.height;
+    if (!W || !H) return;
+    vitalsHistCtx.fillStyle = '#000000';
+    vitalsHistCtx.fillRect(0, 0, W, H);
+
+    // Grid
+    vitalsHistCtx.strokeStyle = '#111111';
+    vitalsHistCtx.lineWidth   = 1;
+    for (const bpm of [5, 10, 12, 15, 18, 20, 25]) {
+      const y = H - (bpm / 30) * H;
+      vitalsHistCtx.beginPath();
+      vitalsHistCtx.moveTo(0, y); vitalsHistCtx.lineTo(W, y);
+      vitalsHistCtx.stroke();
+      vitalsHistCtx.fillStyle = '#222222';
+      vitalsHistCtx.font = '8px Courier New';
+      vitalsHistCtx.fillText(bpm, 2, y - 2);
+    }
+
+    // Normal range shading
+    const yNH = H - (20 / 30) * H;
+    const yNL = H - (12 / 30) * H;
+    vitalsHistCtx.fillStyle = 'rgba(0,80,20,0.15)';
+    vitalsHistCtx.fillRect(0, yNH, W, yNL - yNH);
+
+    // Line
+    vitalsHistCtx.strokeStyle = '#00ff41';
+    vitalsHistCtx.lineWidth   = 1.5;
+    vitalsHistCtx.beginPath();
+    const segW = W / (BR_HISTORY_LEN - 1);
+    for (let i = 0; i < BR_HISTORY_LEN; i++) {
+      const val = brVitalsHistory[i];
+      const x   = i * segW;
+      const y   = H - (val / 30) * H;
+      if (i === 0) vitalsHistCtx.moveTo(x, y);
+      else         vitalsHistCtx.lineTo(x, y);
+    }
+    vitalsHistCtx.stroke();
+  }
+
+  /* flatline */
+  function animateFlatline() {
+    function loop() {
+      flatlineAnimId = requestAnimationFrame(loop);
+      drawFlatline();
+    }
+    loop();
+  }
+
+  function drawFlatline() {
+    const W = vitalsFlatCanvas.width;
+    const H = vitalsFlatCanvas.height;
+    if (!W || !H) return;
+    flatlineT = (flatlineT + 1) % W;
+    vitalsFlatCtx.fillStyle = '#000000';
+    vitalsFlatCtx.fillRect(0, 0, W, H);
+    vitalsFlatCtx.strokeStyle = '#222222';
+    vitalsFlatCtx.lineWidth   = 1;
+    vitalsFlatCtx.beginPath();
+    vitalsFlatCtx.moveTo(0, H / 2);
+    for (let x = 0; x < W; x++) {
+      const blip = (x === (flatlineT % W)) ? H * 0.2 : 0;
+      vitalsFlatCtx.lineTo(x, H / 2 - blip);
+    }
+    vitalsFlatCtx.stroke();
+  }
+
+  /* ══════════════════════════════════════════════════════
+     FPS COUNTER
+  ══════════════════════════════════════════════════════ */
+  setInterval(() => {
+    fpsValue  = fpsCounter;
+    fpsCounter = 0;
+    sigPktRate.textContent = fpsValue + ' fps';
+  }, 1000);
+
+  /* ══════════════════════════════════════════════════════
+     UPDATE UI (called every frame)
+  ══════════════════════════════════════════════════════ */
+  function updateUI(data) {
+    lastData = data;
+    fpsCounter++;
+    frameCount++;
+    lastMsgTime = Date.now();
+
+    const subs     = data.subcarriers || lastSubs;
+    const presence = data.presence    || 'EMPTY';
+    const pc       = data.person_count !== undefined ? data.person_count : 0;
+    const ms       = data.motion_score || 0;
+    const bpm      = data.br_bpm      || 0;
+    const ps       = data.presence_score !== undefined ? data.presence_score : 0;
+    const rssi     = data.rssi         !== undefined ? data.rssi : null;
+
+    lastSubs = subs.slice();
+
+    /* ── Heatmap 2D ── */
+    if (subs.length === NUM_SUBS) pushHeatmapRow(subs);
+    frameCounterEl.textContent = 'FRAME: ' + frameCount;
+
+    /* ── Overview ── */
+    ovPresence.textContent = presence;
+    ovPresence.style.color = presence === 'SINGLE' ? '#00ff41' : presence === 'MULTI' ? '#ff4400' : '#ffffff';
+    ovCount.textContent    = pc;
+    if (bpm === 0) {
+      ovBr.innerHTML = '<span style="color:#666666;font-size:14px;">CALIBRATING</span>';
+    } else {
+      const brC = (bpm >= 12 && bpm <= 20) ? '#00ff41' : '#ffaa00';
+      ovBr.innerHTML = '<span style="color:' + brC + '">' + bpm + '</span> <span style="font-size:14px;color:#666666;">BPM</span>';
+    }
+    if (rssi !== null) {
+      const rc = rssiColor(rssi);
+      ovRssi.innerHTML = '<span style="color:' + rc + '">' + rssi + '</span> <span style="font-size:14px;color:#666666;">dBm</span>';
+    }
+
+    const mpct = Math.min(ms / 10, 1) * 100;
+    ovMotionVal.textContent       = ms.toFixed(2);
+    ovMotionFill.style.width      = mpct + '%';
+    ovMotionFill.style.background = ms < 3 ? '#00ff41' : ms < 6 ? '#ffaa00' : '#ff4400';
+
+    drawMiniHeatmap(subs);
+
+    /* ── Vitals ── */
+    brVitalsHistory.shift(); brVitalsHistory.push(bpm);
+    drawVitalsHistChart();
+    if (presence === 'SINGLE') {
+      vitalsBanner.textContent   = 'SINGLE OCCUPANT — MONITORING ACTIVE';
+      vitalsBanner.style.color   = '#00ff41';
+      vitalsBrGiant.textContent  = bpm > 0 ? bpm : '--';
+      vitalsBrGiant.style.color  = bpm === 0 ? '#666666' : (bpm >= 12 && bpm <= 20 ? '#00ff41' : '#ffaa00');
+    } else if (presence === 'MULTI') {
+      vitalsBanner.textContent  = 'MULTI-OCCUPANT DETECTED — VITALS UNAVAILABLE';
+      vitalsBanner.style.color  = '#ff4400';
+      vitalsBrGiant.textContent = '--';
+      vitalsBrGiant.style.color = '#666666';
+    } else {
+      vitalsBanner.textContent  = 'NO OCCUPANT DETECTED';
+      vitalsBanner.style.color  = '#444444';
+      vitalsBrGiant.textContent = '--';
+      vitalsBrGiant.style.color = '#666666';
+    }
+
+    /* ── Signal ── */
+    if (rssi !== null) {
+      const rc = rssiColor(rssi);
+      sigRssiVal.style.color  = rc;
+      sigRssiVal.innerHTML    = rssi + '<span id="sig-rssi-unit"> dBm</span>';
+      const sp = Math.min(Math.max((rssi + 90) / 60, 0), 1) * 100;
+      sigBarFill.style.width      = sp + '%';
+      sigBarFill.style.background = rc;
+    }
+
+    sigTotalFrames.textContent = frameCount;
+    sigRawJson.textContent     = JSON.stringify(data, null, 2);
+  }
+
+  /* ══════════════════════════════════════════════════════
+     LAST MSG / UPTIME TICKER
+  ══════════════════════════════════════════════════════ */
+  setInterval(() => {
+    if (lastMsgTime === 0) {
+      sigLastMsg.textContent = '--';
+    } else {
+      const s = Math.floor((Date.now() - lastMsgTime) / 1000);
+      sigLastMsg.textContent = s + 's ago';
+      if (s >= 5 && !isDemo) noDataOverlay.classList.add('visible');
+      else                   noDataOverlay.classList.remove('visible');
+    }
+
+    if (wsConnectedAt > 0) {
+      const up  = Math.floor((Date.now() - wsConnectedAt) / 1000);
+      const m   = Math.floor(up / 60);
+      const sec = up % 60;
+      sigUptime.textContent = m + 'm ' + sec + 's';
+    }
+  }, 500);
+
+  /* ══════════════════════════════════════════════════════
+     CONNECTION STATE
+  ══════════════════════════════════════════════════════ */
+  function setConnState(state) {
+    connDot.className    = '';
+    sigConnDot.className = '';
+
+    if (state === 'connected') {
+      connDot.className       = 'connected';
+      sigConnDot.className    = 'connected';
+      connStatusText.textContent  = 'CONNECTED';
+      sigConnText.textContent     = 'CONNECTED';
+      sigConnText.style.color     = '#00ff41';
+      navCenterInfo.textContent   = 'ESP32-S3 // 10.43.135.83';
+    } else if (state === 'disconnected') {
+      connDot.className       = 'disconnected';
+      sigConnDot.className    = 'disconnected';
+      connStatusText.textContent  = 'DISCONNECTED';
+      sigConnText.textContent     = 'DISCONNECTED';
+      sigConnText.style.color     = '#ff4400';
+    } else if (state === 'demo') {
+      connDot.className       = 'demo';
+      sigConnDot.className    = 'demo';
+      connStatusText.textContent  = 'DEMO MODE';
+      sigConnText.textContent     = 'DEMO MODE';
+      sigConnText.style.color     = '#ffaa00';
+      navCenterInfo.textContent   = '[ DEMO MODE ]';
+    } else {
+      connStatusText.textContent = 'CONNECTING...';
+      sigConnText.textContent    = 'CONNECTING...';
+      sigConnText.style.color    = '#666666';
+    }
+  }
+
+  /* ══════════════════════════════════════════════════════
+     DEMO MODE (unchanged logic from original)
+  ══════════════════════════════════════════════════════ */
+  const DEMO_PHASES = ['EMPTY', 'SINGLE', 'MULTI'];
+
+  function generateDemoData() {
+    demoTick++;
+    demoPhaseTimer++;
+    if (demoPhaseTimer >= 100) { demoPhaseTimer = 0; demoPhase = (demoPhase + 1) % 3; }
+
+    const t     = demoTick * 0.1;
+    const phase = DEMO_PHASES[demoPhase];
+
+    const subs = [];
+    for (let s = 0; s < NUM_SUBS; s++) {
+      const base  = 10 + 5 * Math.sin(t * 0.3 + s * 0.2);
+      const noise = (Math.random() - 0.5) * 3;
+      const extra = (phase === 'MULTI') ? 4 * Math.sin(t * 0.7 + s * 0.4) : 0;
+      subs.push(Math.max(0, base + noise + extra));
+    }
+
+    let motionBase;
+    if      (phase === 'EMPTY')  motionBase = 0.5 + 0.3  * Math.sin(t * 0.2);
+    else if (phase === 'SINGLE') motionBase = 2.5 + 1.5  * Math.sin(t * 0.4);
+    else                         motionBase = 5.0 + 1.0  * Math.sin(t * 0.6);
+    const motion_score = Math.max(0, motionBase + (Math.random() - 0.5) * 0.4);
+    const person_count = demoPhase;
+    let br_bpm = 0;
+    if (phase === 'SINGLE') br_bpm = Math.round(15 + 3 * Math.sin(t * 0.05));
+    const rssi = Math.round(-40 + 5 * Math.sin(t * 0.1) + (Math.random() - 0.5) * 2);
+
+    updateUI({ subcarriers: subs, presence: phase, person_count, motion_score, presence_score: motionBase * 0.001, br_bpm, rssi });
+  }
+
+  function startDemoMode() {
+    if (isDemo) return;
+    isDemo = true;
+    setConnState('demo');
+    noDataOverlay.classList.remove('visible');
+    demoTimer = setInterval(generateDemoData, 100);
+  }
+
+  function stopDemoMode() {
+    if (!isDemo) return;
+    isDemo = false;
+    if (demoTimer) { clearInterval(demoTimer); demoTimer = null; }
+  }
+
+  /* ══════════════════════════════════════════════════════
+     WEBSOCKET (unchanged logic from original)
+  ══════════════════════════════════════════════════════ */
+  function connectWS() {
+    if (ws) { ws.onopen = ws.onmessage = ws.onerror = ws.onclose = null; try { ws.close(); } catch(e) {} ws = null; }
+    setConnState('connecting');
+
+    if (fallbackTimer) clearTimeout(fallbackTimer);
+    fallbackTimer = setTimeout(() => { if (!isConnected) startDemoMode(); }, DEMO_FALLBACK_MS);
+
+    try { ws = new WebSocket(WS_URL); }
+    catch(e) { scheduleReconnect(); return; }
+
+    ws.onopen = () => {
+      isConnected  = true;
+      wsConnectedAt = Date.now();
+      if (fallbackTimer) { clearTimeout(fallbackTimer); fallbackTimer = null; }
+      stopDemoMode();
+      setConnState('connected');
+      noDataOverlay.classList.remove('visible');
+    };
+
+    ws.onmessage = evt => { try { updateUI(JSON.parse(evt.data)); } catch(e) {} };
+    ws.onerror   = () => {};
+    ws.onclose   = () => {
+      isConnected   = false;
+      wsConnectedAt = 0;
+      setConnState('disconnected');
+      scheduleReconnect();
+      if (!isDemo && (lastMsgTime === 0 || Date.now() - lastMsgTime > DEMO_FALLBACK_MS)) startDemoMode();
+    };
+  }
+
+  function scheduleReconnect() {
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(connectWS, RECONNECT_MS);
+  }
+
+  /* ══════════════════════════════════════════════════════
+     RESIZE
+  ══════════════════════════════════════════════════════ */
+  function resizeAll() {
+    /* heatmap x-axis */
+    const xEl = document.getElementById('heatmap-xaxis');
+    if (xEl && xEl.offsetWidth) drawXAxis();
+
+    /* overview mini heatmap */
+    ovMiniHeatmap.width  = ovMiniHeatmap.parentElement.clientWidth - 24 || 400;
+    ovMiniHeatmap.height = 32;
+    if (lastSubs) drawMiniHeatmap(lastSubs);
+
+    /* radar */
+    const rWrap = document.getElementById('radar-canvas-wrap');
+    radarCanvas.width  = rWrap.clientWidth  || 600;
+    radarCanvas.height = rWrap.clientHeight || 400;
+
+    /* vitals */
+    const vBr = document.getElementById('vitals-br-section');
+    if (vBr) {
+      vitalsWaveCanvas.width  = vBr.clientWidth - 32 || 400;
+      vitalsWaveCanvas.height = 80;
+      vitalsHistCanvas.width  = vBr.clientWidth - 32 || 400;
+      vitalsHistCanvas.height = Math.max(vBr.clientHeight - 200, 60);
+    }
+    const vHr = document.getElementById('vitals-hr-section');
+    if (vHr) {
+      vitalsFlatCanvas.width  = vHr.clientWidth - 32 || 400;
+      vitalsFlatCanvas.height = 28;
+    }
+
+    /* Three.js resize */
+    if (threeRenderer && wrap3D.clientWidth) {
+      const W = wrap3D.clientWidth;
+      const H = wrap3D.clientHeight;
+      threeRenderer.setSize(W, H);
+      threeCamera.aspect = W / H;
+      threeCamera.updateProjectionMatrix();
+    }
+  }
+
+  /* ══════════════════════════════════════════════════════
+     INIT
+  ══════════════════════════════════════════════════════ */
+  function init() {
+    initHeatmap();
+    resizeAll();
+    window.addEventListener('resize', resizeAll);
+
+    /* Start page-specific animations for default page */
+    animateRadar();       // runs even when hidden — tiny cost, simplifies code
+    animateVitalsWave();
+    animateFlatline();
+    // Actually only run the active page's animations initially
+    stopPageAnimations('radar');
+    stopPageAnimations('vitals');
+
+    connectWS();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+
+})();
+</script>
+</body>
+</html>
