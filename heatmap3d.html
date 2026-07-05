@@ -9,10 +9,10 @@
 html,body{
   width:100%;
   height:100%;
-  background:#000000;
+  background:#f4f3ef;
   overflow:hidden;
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  color:#e8e4d9;
+  color:#2e2d29;
   user-select:none;
 }
 
@@ -41,8 +41,8 @@ html,body{
   left: 0;
   width: 100%;
   height: 48px;
-  background: rgba(0, 0, 0, 0.95);
-  border-bottom: 1px solid rgba(232, 228, 217, 0.08);
+  background: rgba(244, 243, 239, 0.95);
+  border-bottom: 1px solid rgba(46, 45, 41, 0.08);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -66,14 +66,14 @@ html,body{
 .h-symbol {
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   font-size: 14px;
-  color: #e8e4d9;
+  color: #2e2d29;
 }
 
 .h-logo {
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   font-weight: 700;
   font-size: 16px;
-  color: #e8e4d9;
+  color: #2e2d29;
   letter-spacing: 0.1em;
   line-height: 1.1;
 }
@@ -81,7 +81,7 @@ html,body{
 .h-sub {
   font-family: system-ui, -apple-system, sans-serif;
   font-size: 9px;
-  color: rgba(232, 228, 217, 0.4);
+  color: rgba(46, 45, 41, 0.5);
   letter-spacing: 0.2em;
   text-transform: uppercase;
   font-weight: 300;
@@ -99,19 +99,19 @@ html,body{
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: rgba(232, 228, 217, 0.2);
+  background: rgba(46, 45, 41, 0.2);
 }
 
 #state-dot.live {
-  background: #e8e4d9;
+  background: #2e2d29;
 }
 
 #state-dot.demo {
-  background: #c8a96e;
+  background: #a17a3a;
 }
 
 #state-dot.dead {
-  background: rgba(232, 228, 217, 0.2);
+  background: rgba(46, 45, 41, 0.2);
 }
 
 #state-text {
@@ -120,39 +120,41 @@ html,body{
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(232, 228, 217, 0.4);
+  color: rgba(46, 45, 41, 0.4);
 }
 
 #state-text.live {
-  color: #e8e4d9;
+  color: #2e2d29;
 }
 
 #state-text.demo {
-  color: #c8a96e;
+  color: #a17a3a;
 }
 
 #state-text.dead {
-  color: rgba(232, 228, 217, 0.4);
+  color: rgba(46, 45, 41, 0.4);
 }
 
 /* Card layout */
 .card{
   position:absolute;
-  background:rgba(8, 8, 6, 0.88);
-  border:1px solid rgba(232, 228, 217, 0.1);
+  background:rgba(255, 255, 255, 0.95);
+  border:1px solid rgba(46, 45, 41, 0.16);
   padding:20px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  box-shadow: 0 8px 30px rgba(46, 45, 41, 0.08);
   pointer-events: auto;
   border-radius: 0;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .clbl{
   font-family: system-ui, -apple-system, sans-serif;
-  font-weight: 300;
+  font-weight: 600;
   letter-spacing: 0.15em;
   text-transform: uppercase;
   font-size: 10px;
-  color: rgba(232, 228, 217, 0.5);
+  color: rgba(46, 45, 41, 0.7);
   margin-bottom:10px;
 }
 
@@ -164,23 +166,23 @@ html,body{
 
 .vkey{
   font-family: system-ui, -apple-system, sans-serif;
-  font-weight: 300;
+  font-weight: 500;
   letter-spacing: 0.15em;
   text-transform: uppercase;
   font-size: 10px;
-  color: rgba(232, 228, 217, 0.5);
+  color: rgba(46, 45, 41, 0.65);
 }
 
 .vval{
   font-family: system-ui, -apple-system, sans-serif;
   font-weight: 600;
   font-size: 15px;
-  color: #e8e4d9;
+  color: #2e2d29;
 }
 
 .vsep-line {
   height: 1px;
-  background: rgba(232, 228, 217, 0.08);
+  background: rgba(46, 45, 41, 0.12);
   margin: 10px 0;
 }
 
@@ -193,13 +195,13 @@ html,body{
 #conf-bar-bg{
   width:100%;
   height:2px;
-  background:rgba(232, 228, 217, 0.08);
+  background:rgba(46, 45, 41, 0.12);
   margin-top:8px;
 }
 #conf-bar-fill{
   height:100%;
   width:0%;
-  background:#e8e4d9;
+  background:#2e2d29;
   transition:width 0.4s ease;
 }
 
@@ -209,15 +211,18 @@ html,body{
   bottom:20px;
   left:50%;
   transform:translateX(-50%);
-  width:520px;
-  background:rgba(8, 8, 6, 0.88);
-  border:1px solid rgba(232, 228, 217, 0.1);
-  padding:12px 24px;
+  width:560px;
+  background:rgba(255, 255, 255, 0.95);
+  border:1px solid rgba(46, 45, 41, 0.16);
+  padding:16px 28px;
   display:flex;
   align-items:center;
   justify-content:space-between;
   pointer-events: auto;
   border-radius: 0;
+  box-shadow: 0 12px 40px rgba(46, 45, 41, 0.08);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .bbi{
@@ -229,24 +234,24 @@ html,body{
 
 .bkey{
   font-family: system-ui, -apple-system, sans-serif;
-  font-weight: 300;
+  font-weight: 600;
   letter-spacing: 0.15em;
   text-transform: uppercase;
   font-size: 10px;
-  color: rgba(232, 228, 217, 0.5);
+  color: rgba(46, 45, 41, 0.7);
 }
 
 .bval{
   font-family: 'Courier New', monospace;
-  font-size:13px;
+  font-size:14px;
   font-weight:bold;
-  color: #e8e4d9;
+  color: #2e2d29;
 }
 
 .bsep{
   width:1px;
   height:20px;
-  background:rgba(232, 228, 217, 0.15);
+  background:rgba(46, 45, 41, 0.22);
 }
 
 /* Connection info in bottom left */
@@ -266,19 +271,19 @@ html,body{
   width:6px;
   height:6px;
   border-radius: 50%;
-  background:rgba(232, 228, 217, 0.2);
+  background:rgba(46, 45, 41, 0.2);
   flex-shrink:0;
 }
 #conn-dot.live{
-  background:#e8e4d9;
+  background:#2e2d29;
   animation:blink 1.4s ease-in-out infinite;
 }
 #conn-dot.demo{
-  background:#c8a96e;
+  background:#a17a3a;
   animation:blink 1.4s ease-in-out infinite;
 }
 #conn-dot.dead{
-  background:rgba(232, 228, 217, 0.2);
+  background:rgba(46, 45, 41, 0.2);
 }
 
 #conn-lbl {
@@ -286,13 +291,13 @@ html,body{
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.05em;
-  color: rgba(232, 228, 217, 0.4);
+  color: rgba(46, 45, 41, 0.5);
 }
 
 #conn-ip{
   font-family: 'Courier New', monospace;
   font-size:9px;
-  color:rgba(232, 228, 217, 0.4);
+  color:rgba(46, 45, 41, 0.5);
   margin-top:4px;
 }
 
@@ -310,7 +315,7 @@ html,body{
   display:none;
   position:fixed;
   inset:0;
-  background:rgba(0, 0, 0, 0.9);
+  background:rgba(244, 243, 239, 0.85);
   backdrop-filter:blur(8px);
   -webkit-backdrop-filter:blur(8px);
   z-index:9999;
@@ -320,11 +325,11 @@ html,body{
 #ip-ov.show{display:flex}
 
 #ip-box{
-  background:rgba(8, 8, 6, 0.95);
-  border:1px solid rgba(232, 228, 217, 0.1);
+  background:rgba(255, 255, 255, 0.95);
+  border:1px solid rgba(46, 45, 41, 0.1);
   padding:2.5rem 2rem;
   width:360px;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.1);
   text-align:center;
   border-radius: 0;
 }
@@ -333,14 +338,14 @@ html,body{
   font-family: Georgia, serif;
   font-weight: 400;
   font-size: 1.8rem;
-  color: #e8e4d9;
+  color: #2e2d29;
   margin-bottom: 0.5rem;
 }
 
 #ip-box p{
   font-family: system-ui, sans-serif;
   font-size: 13px;
-  color: rgba(232, 228, 217, 0.5);
+  color: rgba(46, 45, 41, 0.6);
   margin-bottom: 1.5rem;
   line-height: 1.4;
 }
@@ -348,9 +353,9 @@ html,body{
 #ip-inp{
   width:100%;
   padding:12px;
-  background:rgba(232, 228, 217, 0.03);
-  border:1px solid rgba(232, 228, 217, 0.1);
-  color:#e8e4d9;
+  background:rgba(46, 45, 41, 0.03);
+  border:1px solid rgba(46, 45, 41, 0.1);
+  color:#2e2d29;
   font-size:14px;
   font-family:'Courier New', monospace;
   outline:none;
@@ -360,15 +365,15 @@ html,body{
   border-radius: 0;
 }
 #ip-inp:focus{
-  border-color: rgba(232, 228, 217, 0.3);
+  border-color: rgba(46, 45, 41, 0.4);
 }
 
 #ip-btn{
   width:100%;
   padding:12px;
   background:transparent;
-  border:1px solid #e8e4d9;
-  color:#e8e4d9;
+  border:1px solid #2e2d29;
+  color:#2e2d29;
   font-size:10px;
   letter-spacing:3px;
   text-transform:uppercase;
@@ -379,12 +384,12 @@ html,body{
   border-radius: 0;
 }
 #ip-btn:hover{
-  background:rgba(232, 228, 217, 0.08);
+  background:rgba(46, 45, 41, 0.05);
 }
 
 .ip-hint3d{
   font-size:10px;
-  color:rgba(232, 228, 217, 0.3);
+  color:rgba(46, 45, 41, 0.4);
   margin-top:12px;
   line-height:1.5;
 }
@@ -415,8 +420,8 @@ html,body{
   <!-- TOP LEFT: Presence -->
   <div class="card" style="top:64px;left:16px;width:200px">
     <div class="clbl">Presence</div>
-    <div id="pres-val" style="font-size: 22px; font-weight: 600; margin-bottom: 6px; color: rgba(232,228,217,0.3);">VACANT</div>
-    <div id="pres-pers" style="font-size: 10px; color: rgba(232,228,217,0.4); letter-spacing: 0.05em; font-weight: 300; text-transform: uppercase;"><span class="num">0</span> PERSONS DETECTED</div>
+    <div id="pres-val" style="font-size: 22px; font-weight: 600; margin-bottom: 6px; color: rgba(46, 45, 41, 0.55);">VACANT</div>
+    <div id="pres-pers" style="font-size: 10px; color: rgba(46, 45, 41, 0.7); letter-spacing: 0.05em; font-weight: 500; text-transform: uppercase;"><span class="num">0</span> PERSONS DETECTED</div>
   </div>
 
   <!-- TOP RIGHT: Vitals -->
@@ -424,17 +429,17 @@ html,body{
     <div class="clbl">Vital Signs</div>
     <div class="vrow">
       <span class="vkey">Breathing</span>
-      <span class="vval" id="vit-br" style="color: rgba(232,228,217,0.3);"><span class="num">--</span> BPM</span>
+      <span class="vval" id="vit-br" style="color: rgba(46, 45, 41, 0.55);"><span class="num">--</span> BPM</span>
     </div>
     <div class="vsep-line"></div>
     <div class="vrow">
       <span class="vkey">Heart Rate</span>
-      <span class="vval" style="color: rgba(232,228,217,0.3);"><span class="num">—</span> BPM</span>
+      <span class="vval" style="color: rgba(46, 45, 41, 0.55);"><span class="num">—</span> BPM</span>
     </div>
     <div class="vsep-line"></div>
     <div class="vrow">
       <span class="vkey">Confidence</span>
-      <span class="vval" id="vit-conf" style="color: rgba(232,228,217,0.3);"><span class="num">0</span>%</span>
+      <span class="vval" id="vit-conf" style="color: rgba(46, 45, 41, 0.55);"><span class="num">0</span>%</span>
     </div>
     <div id="conf-bar-bg"><div id="conf-bar-fill"></div></div>
   </div>
@@ -472,30 +477,30 @@ html,body{
       <span id="conn-lbl">DISCONNECTED</span>
     </div>
     <div id="conn-ip"></div>
-    <div style="font-family: system-ui; font-size: 9px; color: rgba(232, 228, 217, 0.3); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 6px;">SPARS // ESP32-S3</div>
+    <div style="font-family: system-ui; font-size: 9px; color: rgba(46, 45, 41, 0.65); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 6px;">SPARS // ESP32-S3</div>
   </div>
 
   <!-- ZONE LEGEND -->
   <div id="zone-legend" class="card" style="bottom:70px;right:16px;width:200px;">
     <div class="clbl" style="margin-bottom: 8px;">SENSING ZONES</div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-      <div style="width:6px;height:6px;border-radius:50%;background:#e8e4d9"></div>
-      <div style="font-family:system-ui; font-size:10px; font-weight: 300; letter-spacing: 0.02em; color:rgba(232,228,217,0.5)">INNER (0-2M) — VITALS</div>
+      <div style="width:6px;height:6px;border-radius:50%;background:#2e2d29"></div>
+      <div style="font-family:system-ui; font-size:10px; font-weight: 500; letter-spacing: 0.02em; color:rgba(46, 45, 41, 0.7)">INNER (0-2M) — VITALS</div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-      <div style="width:6px;height:6px;border-radius:50%;background:#c8a96e"></div>
-      <div style="font-family:system-ui; font-size:10px; font-weight: 300; letter-spacing: 0.02em; color:rgba(232,228,217,0.5)">MID (2-4M) — PRESENCE</div>
+      <div style="width:6px;height:6px;border-radius:50%;background:#946f32"></div>
+      <div style="font-family:system-ui; font-size:10px; font-weight: 500; letter-spacing: 0.02em; color:rgba(46, 45, 41, 0.7)">MID (2-4M) — PRESENCE</div>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
-      <div style="width:6px;height:6px;border-radius:50%;background:rgba(232,228,217,0.3)"></div>
-      <div style="font-family:system-ui; font-size:10px; font-weight: 300; letter-spacing: 0.02em; color:rgba(232,228,217,0.5)">OUTER (4-6M) — MOTION</div>
+      <div style="width:6px;height:6px;border-radius:50%;background:rgba(46, 45, 41, 0.3)"></div>
+      <div style="font-family:system-ui; font-size:10px; font-weight: 500; letter-spacing: 0.02em; color:rgba(46, 45, 41, 0.7)">OUTER (4-6M) — MOTION</div>
     </div>
   </div>
 
   <!-- BOTTOM RIGHT -->
   <div id="branding">
-    <div style="font-family: system-ui; font-size: 11px; font-weight: 600; color: #e8e4d9; letter-spacing: 0.1em; line-height: 1.2;">SPARS</div>
-    <div style="font-family: system-ui; font-size: 8px; color: rgba(232,228,217,0.4); letter-spacing: 0.15em; text-transform: uppercase; margin-top: 2px;">WAVES SAVES LIFE</div>
+    <div style="font-family: system-ui; font-size: 11px; font-weight: 600; color: #2e2d29; letter-spacing: 0.1em; line-height: 1.2;">SPARS</div>
+    <div style="font-family: system-ui; font-size: 8px; color: rgba(46, 45, 41, 0.65); letter-spacing: 0.15em; text-transform: uppercase; margin-top: 2px;">WAVES SAVES LIFE</div>
   </div>
 </div>
 
@@ -631,15 +636,38 @@ function isoPoint(ring, angDeg){
    COLOR
 ═══════════════════════════════════════════════════ */
 function heatRGB(h){
-  var r=0,g=0,b=0,t;
-  if(h < 0.10){ r=0;   g=8;   b=0; }
-  else if(h < 0.25){ t=(h-0.10)/0.15; r=0;                  g=Math.round(8  +(26 -8  )*t); b=0; }
-  else if(h < 0.40){ t=(h-0.25)/0.15; r=0;                  g=Math.round(26 +(68 -26 )*t); b=0; }
-  else if(h < 0.55){ t=(h-0.40)/0.15; r=0;                  g=Math.round(68 +(153-68 )*t); b=0; }
-  else if(h < 0.70){ t=(h-0.55)/0.15; r=Math.round(170*t);  g=Math.round(153+(204-153)*t); b=0; }
-  else if(h < 0.82){ t=(h-0.70)/0.12; r=Math.round(170+(255-170)*t); g=Math.round(204+(170-204)*t); b=0; }
-  else if(h < 0.92){ t=(h-0.82)/0.10; r=255; g=Math.round(170+(85 -170)*t); b=0; }
-  else              { t=(h-0.92)/0.08; r=255; g=Math.round(85 +(17 -85 )*t); b=0; }
+  var r, g, b, t;
+  if(h < 0.25){
+    // Transition from light beige #eae8e1 [234, 232, 225] to soft green #b8e2c8 [184, 226, 200]
+    t = h / 0.25;
+    r = Math.round(234 + (184 - 234) * t);
+    g = Math.round(232 + (226 - 232) * t);
+    b = Math.round(225 + (200 - 225) * t);
+  } else if(h < 0.50){
+    // Transition from soft green #b8e2c8 [184, 226, 200] to vibrant green #2ebd59 [46, 189, 89]
+    t = (h - 0.25) / 0.25;
+    r = Math.round(184 + (46 - 184) * t);
+    g = Math.round(226 + (189 - 226) * t);
+    b = Math.round(200 + (89 - 200) * t);
+  } else if(h < 0.70){
+    // Transition from vibrant green #2ebd59 [46, 189, 89] to gold/yellow #e2be7a [226, 190, 122]
+    t = (h - 0.50) / 0.20;
+    r = Math.round(46 + (226 - 46) * t);
+    g = Math.round(189 + (190 - 189) * t);
+    b = Math.round(89 + (122 - 89) * t);
+  } else if(h < 0.85){
+    // Transition from gold/yellow #e2be7a [226, 190, 122] to orange #e07a5f [224, 122, 95]
+    t = (h - 0.70) / 0.15;
+    r = Math.round(226 + (224 - 226) * t);
+    g = Math.round(190 + (122 - 190) * t);
+    b = Math.round(122 + (95 - 122) * t);
+  } else {
+    // Transition from orange #e07a5f [224, 122, 95] to red #e63946 [230, 57, 70]
+    t = Math.min(1.0, (h - 0.85) / 0.15);
+    r = Math.round(224 + (230 - 224) * t);
+    g = Math.round(122 + (57 - 122) * t);
+    b = Math.round(95 + (70 - 95) * t);
+  }
   return [Math.min(255,Math.max(0,r)), Math.min(255,Math.max(0,g)), Math.min(255,Math.max(0,b))];
 }
 
@@ -649,7 +677,7 @@ function darken(c,f)  { return [Math.round(c[0]*f), Math.round(c[1]*f), Math.rou
 
 /* ═══════════════════════════════════════════════════
    POLYGON HELPERS
-═══════════════════════════════════════════════════ */
+ ═══════════════════════════════════════════════════ */
 function fillPoly(pts, color){
   ctx.beginPath();
   ctx.moveTo(pts[0].x, pts[0].y);
@@ -670,7 +698,7 @@ function strokePoly(pts, color, lw){
 
 /* ═══════════════════════════════════════════════════
    DRAW CELL — used in sort-by-screenY pipeline
-═══════════════════════════════════════════════════ */
+ ═══════════════════════════════════════════════════ */
 function drawCell(ri, si, heat){
   var extH = heat * MAX_EXTR;
   var a0   = si * SEG_DEG;
@@ -684,9 +712,8 @@ function drawCell(ri, si, heat){
   var col = heatRGB(heat);
 
   if(extH < 0.5){
-    var fc = darken(col, 0.5);
-    fillPoly([AG,BG,CG,DG], rgb(fc[0],fc[1],fc[2]));
-    strokePoly([AG,BG,CG,DG], 'rgba(0,30,0,0.18)', 0.4);
+    fillPoly([AG,BG,CG,DG], '#eae8e1');
+    strokePoly([AG,BG,CG,DG], 'rgba(46, 45, 41, 0.08)', 0.4);
     return;
   }
 
@@ -696,8 +723,8 @@ function drawCell(ri, si, heat){
   var DT = {x:DG.x, y:DG.y - extH};
 
   var topColor  = rgb(col[0], col[1], col[2]);
-  var wallOuter = darken(col, 0.40);
-  var wallInner = darken(col, 0.25);
+  var wallOuter = darken(col, 0.85);
+  var wallInner = darken(col, 0.75);
 
   // Which wall faces viewer (depends on view angle)
   var ca = (si + 0.5) * SEG_DEG * Math.PI / 180 + viewAngle;
@@ -705,27 +732,23 @@ function drawCell(ri, si, heat){
 
   if(facing > 0.05){
     fillPoly([DT,CT,CG,DG], rgb(wallOuter[0],wallOuter[1],wallOuter[2]));
-    strokePoly([DT,CT,CG,DG], 'rgba(0,0,0,0.4)', 0.3);
+    strokePoly([DT,CT,CG,DG], 'rgba(46, 45, 41, 0.15)', 0.3);
   } else if(facing < -0.05){
     fillPoly([AT,BT,BG,AG], rgb(wallInner[0],wallInner[1],wallInner[2]));
-    strokePoly([AT,BT,BG,AG], 'rgba(0,0,0,0.4)', 0.3);
+    strokePoly([AT,BT,BG,AG], 'rgba(46, 45, 41, 0.15)', 0.3);
   }
 
   fillPoly([AT,BT,CT,DT], topColor);
-  if(heat > 0.5){
-    strokePoly([AT,BT,CT,DT], 'rgba(255,255,255,0.1)', 0.4);
-  } else {
-    strokePoly([AT,BT,CT,DT], 'rgba(0,0,0,0.3)', 0.4);
-  }
+  strokePoly([AT,BT,CT,DT], 'rgba(46, 45, 41, 0.2)', 0.4);
 }
 
 /* ═══════════════════════════════════════════════════
    GRID GUIDES
-═══════════════════════════════════════════════════ */
+ ═══════════════════════════════════════════════════ */
 function drawGridGuides(){
   for(var ring=1; ring<=RINGS; ring++){
     var isMain = (ring % 2 === 0);
-    ctx.strokeStyle = isMain ? 'rgba(232, 228, 217, 0.15)' : 'rgba(232, 228, 217, 0.08)';
+    ctx.strokeStyle = isMain ? 'rgba(46, 45, 41, 0.15)' : 'rgba(46, 45, 41, 0.08)';
     ctx.lineWidth = isMain ? 1 : 0.5;
     if(isMain) ctx.setLineDash([4, 6]);
     else ctx.setLineDash([]);
@@ -742,7 +765,7 @@ function drawGridGuides(){
   }
   ctx.setLineDash([]);
   // Radial segment dividers
-  ctx.strokeStyle = 'rgba(232, 228, 217, 0.06)';
+  ctx.strokeStyle = 'rgba(46, 45, 41, 0.06)';
   ctx.lineWidth   = 0.4;
   for(var s=0; s<SEGS; s++){
     var outer = isoPoint(RINGS, s * SEG_DEG);
@@ -755,7 +778,7 @@ function drawGridGuides(){
 
 /* ═══════════════════════════════════════════════════
    COMPASS LABELS
-═══════════════════════════════════════════════════ */
+ ═══════════════════════════════════════════════════ */
 function drawCompass(){
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
@@ -764,7 +787,7 @@ function drawCompass(){
     var label  = COMPASS_MAIN[i][1];
     var pt = isoPoint(8.85, angDeg);
     var isCard = (label==='N'||label==='S'||label==='E'||label==='W');
-    ctx.fillStyle = 'rgba(232, 228, 217, 0.4)';
+    ctx.fillStyle = 'rgba(46, 45, 41, 0.5)';
     ctx.font = isCard
       ? 'bold 11px system-ui, -apple-system, sans-serif'
       : '9px system-ui, -apple-system, sans-serif';
@@ -776,7 +799,7 @@ function drawCompass(){
 
 /* ═══════════════════════════════════════════════════
    RING LABELS
-═══════════════════════════════════════════════════ */
+ ═══════════════════════════════════════════════════ */
 function drawRingLabels(){
   ctx.font         = '10px system-ui, -apple-system, sans-serif';
   ctx.textAlign    = 'center';
@@ -788,8 +811,8 @@ function drawRingLabels(){
     var px = pt.x + 20; 
     var py = pt.y;
     
-    ctx.fillStyle = 'rgba(8, 8, 6, 0.88)';
-    ctx.strokeStyle = 'rgba(232, 228, 217, 0.12)';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.strokeStyle = 'rgba(46, 45, 41, 0.12)';
     ctx.lineWidth = 1;
     var w = 26, h = 14;
     ctx.beginPath();
@@ -797,7 +820,7 @@ function drawRingLabels(){
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = 'rgba(232, 228, 217, 0.5)';
+    ctx.fillStyle = 'rgba(46, 45, 41, 0.6)';
     ctx.fillText(text, px, py + 1);
   }
   ctx.textAlign    = 'left';
@@ -806,7 +829,7 @@ function drawRingLabels(){
 
 /* ═══════════════════════════════════════════════════
    ESP32 CENTER NODE
-═══════════════════════════════════════════════════ */
+ ═══════════════════════════════════════════════════ */
 function drawCenter(){
   var t     = pulseT * 2 * Math.PI / 2;
   
@@ -815,7 +838,7 @@ function drawCenter(){
   var rOpac = (1 - phase) * 0.8;
   
   ctx.beginPath();
-  ctx.strokeStyle = rgba(232, 228, 217, rOpac.toFixed(2));
+  ctx.strokeStyle = 'rgba(46, 45, 41, ' + rOpac.toFixed(2) + ')';
   ctx.lineWidth = 1.5;
   var first = true;
   for(var a=0; a<=360; a+=10){
@@ -830,17 +853,17 @@ function drawCenter(){
   ctx.closePath();
   ctx.stroke();
 
-  ctx.fillStyle = '#e8e4d9';
+  ctx.fillStyle = '#2e2d29';
   ctx.fillRect(OX - 7, OY - 4, 14, 8);
   
   ctx.beginPath();
-  ctx.strokeStyle = '#e8e4d9';
+  ctx.strokeStyle = '#2e2d29';
   ctx.lineWidth = 1.5;
   ctx.moveTo(OX, OY - 4);
   ctx.lineTo(OX, OY - 12);
   ctx.stroke();
 
-  ctx.fillStyle   = '#e8e4d9';
+  ctx.fillStyle   = '#2e2d29';
   ctx.font        = '10px system-ui, -apple-system, sans-serif';
   ctx.textAlign   = 'center';
   ctx.textBaseline= 'bottom';
@@ -936,7 +959,7 @@ function render(){
     }
   }
 
-  ctx.fillStyle = '#000000';
+  ctx.fillStyle = '#f4f3ef';
   ctx.fillRect(0, 0, W, H);
 
   drawGridGuides();
@@ -969,7 +992,7 @@ function render(){
   if(pres === 'SINGLE' || pres === 'MULTI'){
     var best1 = findHottest();
     if(best1.heat >= 0.3){
-      drawBeaconAt(best1.ri, best1.si, best1.heat, '#e8e4d9', 0);
+      drawBeaconAt(best1.ri, best1.si, best1.heat, '#2e2d29', 0);
     }
     if(pres === 'MULTI'){
       var best2h=-1, best2r=0, best2s=0;
@@ -980,7 +1003,7 @@ function render(){
         }
       }
       if(best2h >= 0.3){
-        drawBeaconAt(best2r, best2s, best2h, '#c8a96e', Math.PI);
+        drawBeaconAt(best2r, best2s, best2h, '#a17a3a', Math.PI);
       }
     }
   }
@@ -1076,44 +1099,44 @@ function updateHUD(data){
 
   if(p === 'EMPTY'){
     domPresVal.textContent = 'VACANT';
-    domPresVal.style.color = 'rgba(232, 228, 217, 0.3)';
+    domPresVal.style.color = 'rgba(46, 45, 41, 0.55)';
   } else if(p === 'SINGLE'){
     domPresVal.textContent = 'OCCUPIED';
-    domPresVal.style.color = '#e8e4d9';
+    domPresVal.style.color = '#2e2d29';
   } else {
     domPresVal.textContent = 'MULTIPLE';
-    domPresVal.style.color = '#c8a96e';
+    domPresVal.style.color = '#946f32';
   }
   domPresPers.innerHTML = '<span class="num">' + pc + '</span> PERSON' + (pc!==1?'S':'') + ' DETECTED';
 
   if(bpm > 0 && p === 'SINGLE'){
     domVitBr.innerHTML = '<span class="num">' + bpm + '</span> BPM';
-    domVitBr.style.color = '#e8e4d9';
+    domVitBr.style.color = '#2e2d29';
   } else {
     domVitBr.innerHTML = '<span class="num">--</span> BPM';
-    domVitBr.style.color = 'rgba(232, 228, 217, 0.3)';
+    domVitBr.style.color = 'rgba(46, 45, 41, 0.55)';
   }
   var conf = (p !== 'EMPTY') ? Math.min(85 + ms*8, 99) : 0;
   domVitConf.innerHTML  = '<span class="num">' + Math.round(conf) + '</span>%';
   domConfFill.style.width = conf + '%';
   if(p === 'EMPTY'){
-    domVitConf.style.color = 'rgba(232, 228, 217, 0.3)';
+    domVitConf.style.color = 'rgba(46, 45, 41, 0.55)';
   } else {
-    domVitConf.style.color = '#e8e4d9';
+    domVitConf.style.color = '#2e2d29';
   }
 
   var rc;
   if(rssi > -45){
-    rc='#e8e4d9'; domBbSig.textContent='STRONG'; domBbSig.style.color='#e8e4d9';
+    rc='#2e2d29'; domBbSig.textContent='STRONG'; domBbSig.style.color='#2e2d29';
   } else if(rssi > -65){
-    rc='#c8a96e'; domBbSig.textContent='MED';    domBbSig.style.color='#c8a96e';
+    rc='#946f32'; domBbSig.textContent='MED';    domBbSig.style.color='#946f32';
   } else {
-    rc='rgba(232, 228, 217, 0.3)'; domBbSig.textContent='WEAK';   domBbSig.style.color='rgba(232, 228, 217, 0.3)';
+    rc='rgba(46, 45, 41, 0.55)'; domBbSig.textContent='WEAK';   domBbSig.style.color='rgba(46, 45, 41, 0.55)';
   }
   domBbRssi.innerHTML  = '<span class="num">' + rssi + '</span> dBm';
   domBbRssi.style.color  = rc;
   domBbMot.innerHTML   = '<span class="num">' + ms.toFixed(2) + '</span>';
-  domBbMot.style.color   = ms<2?'#e8e4d9':ms<5?'#c8a96e':'rgba(232, 228, 217, 0.4)';
+  domBbMot.style.color   = ms<2?'#2e2d29':ms<5?'#946f32':'rgba(46, 45, 41, 0.55)';
   
   motionHist.shift();
   motionHist.push(ms);
@@ -1121,7 +1144,7 @@ function updateHUD(data){
   for(var i=0; i<5; i++){
     var v = motionHist[i];
     var h = Math.min(20, Math.max(2, v * 4)); 
-    var c = v<2 ? '#e8e4d9' : v<5 ? '#c8a96e' : 'rgba(232, 228, 217, 0.3)';
+    var c = v<2 ? '#2e2d29' : v<5 ? '#946f32' : 'rgba(46, 45, 41, 0.4)';
     motHtml += '<div style="width:4px;height:'+h+'px;background:'+c+'; border-radius:0px"></div>';
   }
   document.getElementById('mot-hist').innerHTML = motHtml;
@@ -1137,21 +1160,21 @@ function setConnState(st){
   if(st === 'live'){
     domConnDot.className    = 'live';
     domConnLbl.textContent  = 'LIVE';
-    domConnLbl.style.color  = '#e8e4d9';
+    domConnLbl.style.color  = '#2e2d29';
     domStateDot.className = 'live';
     domStateText.textContent = 'LIVE';
     domStateText.className = 'live';
   } else if(st === 'demo'){
     domConnDot.className    = 'demo';
     domConnLbl.textContent  = 'DEMO';
-    domConnLbl.style.color  = '#c8a96e';
+    domConnLbl.style.color  = '#946f32';
     domStateDot.className = 'demo';
     domStateText.textContent = 'DEMO';
     domStateText.className = 'demo';
   } else {
     domConnDot.className    = 'dead';
     domConnLbl.textContent  = 'DISCONNECTED';
-    domConnLbl.style.color  = 'rgba(232, 228, 217, 0.3)';
+    domConnLbl.style.color  = 'rgba(46, 45, 41, 0.55)';
     domStateDot.className = 'dead';
     domStateText.textContent = 'OFFLINE';
     domStateText.className = 'dead';
