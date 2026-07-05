@@ -1,1356 +1,1406 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AMBIENT SENSE — WiFi CSI Polar Heatmap</title>
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{
-  width:100%;
-  height:100%;
-  background:#f4f3ef;
-  overflow:hidden;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  color:#2e2d29;
-  user-select:none;
-}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AMBIENT SENSE — WiFi CSI Polar Heatmap</title>
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
 
-#c{
-  display:block;
-  width:100%;
-  height:100%;
-  position:absolute;
-  inset:0;
-  z-index:1;
-  cursor:grab;
-}
-#c.dragging{cursor:grabbing}
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      background: #f4f3ef;
+      overflow: hidden;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      color: #2e2d29;
+      user-select: none;
+    }
 
-#hud{
-  position:absolute;
-  inset:0;
-  z-index:10;
-  pointer-events:none;
-}
+    #c {
+      display: block;
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      cursor: grab;
+    }
 
-/* Header Bar styling */
-#header-bar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 48px;
-  background: rgba(244, 243, 239, 0.95);
-  border-bottom: 1px solid rgba(46, 45, 41, 0.08);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 1.5rem;
-  z-index: 20;
-  pointer-events: auto;
-}
+    #c.dragging {
+      cursor: grabbing
+    }
 
-.h-left {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
+    #hud {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none;
+    }
 
-.h-title-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
+    /* Header Bar styling */
+    #header-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 48px;
+      background: rgba(244, 243, 239, 0.95);
+      border-bottom: 1px solid rgba(46, 45, 41, 0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 1.5rem;
+      z-index: 20;
+      pointer-events: auto;
+    }
 
-.h-symbol {
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  font-size: 14px;
-  color: #2e2d29;
-}
+    .h-left {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
 
-.h-logo {
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  font-weight: 700;
-  font-size: 16px;
-  color: #2e2d29;
-  letter-spacing: 0.1em;
-  line-height: 1.1;
-}
+    .h-title-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
 
-.h-sub {
-  font-family: system-ui, -apple-system, sans-serif;
-  font-size: 9px;
-  color: rgba(46, 45, 41, 0.5);
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  font-weight: 300;
-  margin-top: 2px;
-}
+    .h-symbol {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      color: #2e2d29;
+    }
 
-/* State Badge minimal dot + word */
-#state-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+    .h-logo {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-weight: 700;
+      font-size: 16px;
+      color: #2e2d29;
+      letter-spacing: 0.1em;
+      line-height: 1.1;
+    }
 
-#state-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: rgba(46, 45, 41, 0.2);
-}
+    .h-sub {
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 9px;
+      color: rgba(46, 45, 41, 0.5);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      font-weight: 300;
+      margin-top: 2px;
+    }
 
-#state-dot.live {
-  background: #2e2d29;
-}
+    /* State Badge minimal dot + word */
+    #state-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
 
-#state-dot.demo {
-  background: #a17a3a;
-}
+    #state-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(46, 45, 41, 0.2);
+    }
 
-#state-dot.dead {
-  background: rgba(46, 45, 41, 0.2);
-}
+    #state-dot.live {
+      background: #2e2d29;
+    }
 
-#state-text {
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: rgba(46, 45, 41, 0.4);
-}
+    #state-dot.demo {
+      background: #a17a3a;
+    }
 
-#state-text.live {
-  color: #2e2d29;
-}
+    #state-dot.dead {
+      background: rgba(46, 45, 41, 0.2);
+    }
 
-#state-text.demo {
-  color: #a17a3a;
-}
+    #state-text {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(46, 45, 41, 0.4);
+    }
 
-#state-text.dead {
-  color: rgba(46, 45, 41, 0.4);
-}
+    #state-text.live {
+      color: #2e2d29;
+    }
 
-/* Card layout */
-.card{
-  position:absolute;
-  background:rgba(255, 255, 255, 0.95);
-  border:1px solid rgba(46, 45, 41, 0.16);
-  padding:20px;
-  box-shadow: 0 8px 30px rgba(46, 45, 41, 0.08);
-  pointer-events: auto;
-  border-radius: 0;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-}
+    #state-text.demo {
+      color: #a17a3a;
+    }
 
-.clbl{
-  font-family: system-ui, -apple-system, sans-serif;
-  font-weight: 600;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  font-size: 10px;
-  color: rgba(46, 45, 41, 0.7);
-  margin-bottom:10px;
-}
+    #state-text.dead {
+      color: rgba(46, 45, 41, 0.4);
+    }
 
-.vrow{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
+    /* Card layout */
+    .card {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(46, 45, 41, 0.16);
+      padding: 20px;
+      box-shadow: 0 8px 30px rgba(46, 45, 41, 0.08);
+      pointer-events: auto;
+      border-radius: 0;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
 
-.vkey{
-  font-family: system-ui, -apple-system, sans-serif;
-  font-weight: 500;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  font-size: 10px;
-  color: rgba(46, 45, 41, 0.65);
-}
+    .clbl {
+      font-family: system-ui, -apple-system, sans-serif;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      font-size: 10px;
+      color: rgba(46, 45, 41, 0.7);
+      margin-bottom: 10px;
+    }
 
-.vval{
-  font-family: system-ui, -apple-system, sans-serif;
-  font-weight: 600;
-  font-size: 15px;
-  color: #2e2d29;
-}
+    .vrow {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
 
-.vsep-line {
-  height: 1px;
-  background: rgba(46, 45, 41, 0.12);
-  margin: 10px 0;
-}
+    .vkey {
+      font-family: system-ui, -apple-system, sans-serif;
+      font-weight: 500;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      font-size: 10px;
+      color: rgba(46, 45, 41, 0.65);
+    }
 
-.num {
-  font-family: 'Courier New', monospace;
-  font-weight: bold;
-}
+    .vval {
+      font-family: system-ui, -apple-system, sans-serif;
+      font-weight: 600;
+      font-size: 15px;
+      color: #2e2d29;
+    }
 
-/* Vitals confidence bar */
-#conf-bar-bg{
-  width:100%;
-  height:2px;
-  background:rgba(46, 45, 41, 0.12);
-  margin-top:8px;
-}
-#conf-bar-fill{
-  height:100%;
-  width:0%;
-  background:#2e2d29;
-  transition:width 0.4s ease;
-}
+    .vsep-line {
+      height: 1px;
+      background: rgba(46, 45, 41, 0.12);
+      margin: 10px 0;
+    }
 
-/* Bottom Bar */
-#bar-btm{
-  position:absolute;
-  bottom:20px;
-  left:50%;
-  transform:translateX(-50%);
-  width:560px;
-  background:rgba(255, 255, 255, 0.95);
-  border:1px solid rgba(46, 45, 41, 0.16);
-  padding:16px 28px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  pointer-events: auto;
-  border-radius: 0;
-  box-shadow: 0 12px 40px rgba(46, 45, 41, 0.08);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-}
+    .num {
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+    }
 
-.bbi{
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap:4px;
-}
+    /* Vitals confidence bar */
+    #conf-bar-bg {
+      width: 100%;
+      height: 2px;
+      background: rgba(46, 45, 41, 0.12);
+      margin-top: 8px;
+    }
 
-.bkey{
-  font-family: system-ui, -apple-system, sans-serif;
-  font-weight: 600;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  font-size: 10px;
-  color: rgba(46, 45, 41, 0.7);
-}
+    #conf-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: #2e2d29;
+      transition: width 0.4s ease;
+    }
 
-.bval{
-  font-family: 'Courier New', monospace;
-  font-size:14px;
-  font-weight:bold;
-  color: #2e2d29;
-}
+    /* Bottom Bar */
+    #bar-btm {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 560px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(46, 45, 41, 0.16);
+      padding: 16px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      pointer-events: auto;
+      border-radius: 0;
+      box-shadow: 0 12px 40px rgba(46, 45, 41, 0.08);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
 
-.bsep{
-  width:1px;
-  height:20px;
-  background:rgba(46, 45, 41, 0.22);
-}
+    .bbi {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
 
-/* Connection info in bottom left */
-#conn-info{
-  position:absolute;
-  bottom:20px;
-  left:24px;
-}
+    .bkey {
+      font-family: system-ui, -apple-system, sans-serif;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      font-size: 10px;
+      color: rgba(46, 45, 41, 0.7);
+    }
 
-#conn-line{
-  display:flex;
-  align-items:center;
-  gap:8px;
-}
+    .bval {
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      font-weight: bold;
+      color: #2e2d29;
+    }
 
-#conn-dot{
-  width:6px;
-  height:6px;
-  border-radius: 50%;
-  background:rgba(46, 45, 41, 0.2);
-  flex-shrink:0;
-}
-#conn-dot.live{
-  background:#2e2d29;
-  animation:blink 1.4s ease-in-out infinite;
-}
-#conn-dot.demo{
-  background:#a17a3a;
-  animation:blink 1.4s ease-in-out infinite;
-}
-#conn-dot.dead{
-  background:rgba(46, 45, 41, 0.2);
-}
+    .bsep {
+      width: 1px;
+      height: 20px;
+      background: rgba(46, 45, 41, 0.22);
+    }
 
-#conn-lbl {
-  font-family: system-ui, -apple-system, sans-serif;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  color: rgba(46, 45, 41, 0.5);
-}
+    /* Connection info in bottom left */
+    #conn-info {
+      position: absolute;
+      bottom: 20px;
+      left: 24px;
+    }
 
-#conn-ip{
-  font-family: 'Courier New', monospace;
-  font-size:9px;
-  color:rgba(46, 45, 41, 0.5);
-  margin-top:4px;
-}
+    #conn-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
 
-@keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
+    #conn-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(46, 45, 41, 0.2);
+      flex-shrink: 0;
+    }
 
-#branding{
-  position:absolute;
-  bottom:20px;
-  right:24px;
-  text-align:right;
-}
+    #conn-dot.live {
+      background: #2e2d29;
+      animation: blink 1.4s ease-in-out infinite;
+    }
 
-/* IP Prompt Overlay */
-#ip-ov{
-  display:none;
-  position:fixed;
-  inset:0;
-  background:rgba(244, 243, 239, 0.85);
-  backdrop-filter:blur(8px);
-  -webkit-backdrop-filter:blur(8px);
-  z-index:9999;
-  align-items:center;
-  justify-content:center;
-}
-#ip-ov.show{display:flex}
+    #conn-dot.demo {
+      background: #a17a3a;
+      animation: blink 1.4s ease-in-out infinite;
+    }
 
-#ip-box{
-  background:rgba(255, 255, 255, 0.95);
-  border:1px solid rgba(46, 45, 41, 0.1);
-  padding:2.5rem 2rem;
-  width:360px;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.1);
-  text-align:center;
-  border-radius: 0;
-}
+    #conn-dot.dead {
+      background: rgba(46, 45, 41, 0.2);
+    }
 
-#ip-box h3{
-  font-family: Georgia, serif;
-  font-weight: 400;
-  font-size: 1.8rem;
-  color: #2e2d29;
-  margin-bottom: 0.5rem;
-}
+    #conn-lbl {
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      color: rgba(46, 45, 41, 0.5);
+    }
 
-#ip-box p{
-  font-family: system-ui, sans-serif;
-  font-size: 13px;
-  color: rgba(46, 45, 41, 0.6);
-  margin-bottom: 1.5rem;
-  line-height: 1.4;
-}
+    #conn-ip {
+      font-family: 'Courier New', monospace;
+      font-size: 9px;
+      color: rgba(46, 45, 41, 0.5);
+      margin-top: 4px;
+    }
 
-#ip-inp{
-  width:100%;
-  padding:12px;
-  background:rgba(46, 45, 41, 0.03);
-  border:1px solid rgba(46, 45, 41, 0.1);
-  color:#2e2d29;
-  font-size:14px;
-  font-family:'Courier New', monospace;
-  outline:none;
-  text-align:center;
-  margin-bottom:1rem;
-  transition:border-color 0.2s;
-  border-radius: 0;
-}
-#ip-inp:focus{
-  border-color: rgba(46, 45, 41, 0.4);
-}
+    @keyframes blink {
 
-#ip-btn{
-  width:100%;
-  padding:12px;
-  background:transparent;
-  border:1px solid #2e2d29;
-  color:#2e2d29;
-  font-size:10px;
-  letter-spacing:3px;
-  text-transform:uppercase;
-  cursor:pointer;
-  transition:all 0.2s;
-  font-family: system-ui, sans-serif;
-  font-weight: 600;
-  border-radius: 0;
-}
-#ip-btn:hover{
-  background:rgba(46, 45, 41, 0.05);
-}
+      0%,
+      100% {
+        opacity: 1
+      }
 
-.ip-hint3d{
-  font-size:10px;
-  color:rgba(46, 45, 41, 0.4);
-  margin-top:12px;
-  line-height:1.5;
-}
-</style>
+      50% {
+        opacity: 0.2
+      }
+    }
+
+    #branding {
+      position: absolute;
+      bottom: 20px;
+      right: 24px;
+      text-align: right;
+    }
+
+    /* IP Prompt Overlay */
+    #ip-ov {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(244, 243, 239, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #ip-ov.show {
+      display: flex
+    }
+
+    #ip-box {
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(46, 45, 41, 0.1);
+      padding: 2.5rem 2rem;
+      width: 360px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      border-radius: 0;
+    }
+
+    #ip-box h3 {
+      font-family: Georgia, serif;
+      font-weight: 400;
+      font-size: 1.8rem;
+      color: #2e2d29;
+      margin-bottom: 0.5rem;
+    }
+
+    #ip-box p {
+      font-family: system-ui, sans-serif;
+      font-size: 13px;
+      color: rgba(46, 45, 41, 0.6);
+      margin-bottom: 1.5rem;
+      line-height: 1.4;
+    }
+
+    #ip-inp {
+      width: 100%;
+      padding: 12px;
+      background: rgba(46, 45, 41, 0.03);
+      border: 1px solid rgba(46, 45, 41, 0.1);
+      color: #2e2d29;
+      font-size: 14px;
+      font-family: 'Courier New', monospace;
+      outline: none;
+      text-align: center;
+      margin-bottom: 1rem;
+      transition: border-color 0.2s;
+      border-radius: 0;
+    }
+
+    #ip-inp:focus {
+      border-color: rgba(46, 45, 41, 0.4);
+    }
+
+    #ip-btn {
+      width: 100%;
+      padding: 12px;
+      background: transparent;
+      border: 1px solid #2e2d29;
+      color: #2e2d29;
+      font-size: 10px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: system-ui, sans-serif;
+      font-weight: 600;
+      border-radius: 0;
+    }
+
+    #ip-btn:hover {
+      background: rgba(46, 45, 41, 0.05);
+    }
+
+    .ip-hint3d {
+      font-size: 10px;
+      color: rgba(46, 45, 41, 0.4);
+      margin-top: 12px;
+      line-height: 1.5;
+    }
+  </style>
 </head>
+
 <body>
 
-<canvas id="c"></canvas>
+  <canvas id="c"></canvas>
 
-<div id="hud">
-  <!-- Header Bar -->
-  <header id="header-bar">
-    <div class="h-left">
-      <div class="h-title-row">
-        <span class="h-symbol">π</span>
-        <span class="h-logo">SPARS</span>
+  <div id="hud">
+    <!-- Header Bar -->
+    <header id="header-bar">
+      <div class="h-left">
+        <div class="h-title-row">
+
+          <span class="h-logo">SPARS</span>
+        </div>
+        <div class="h-sub">WIFI PRESENCE MONITORING</div>
       </div>
-      <div class="h-sub">WIFI PRESENCE MONITORING</div>
+      <div class="h-right">
+        <div id="state-status">
+          <span id="state-dot" class="dead"></span>
+          <span id="state-text" class="dead">OFFLINE</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- TOP LEFT: Presence -->
+    <div class="card" style="top:64px;left:16px;width:200px">
+      <div class="clbl">Presence</div>
+      <div id="pres-val" style="font-size: 22px; font-weight: 600; margin-bottom: 6px; color: rgba(46, 45, 41, 0.55);">
+        VACANT</div>
+      <div id="pres-pers"
+        style="font-size: 10px; color: rgba(46, 45, 41, 0.7); letter-spacing: 0.05em; font-weight: 500; text-transform: uppercase;">
+        <span class="num">0</span> PERSONS DETECTED</div>
     </div>
-    <div class="h-right">
-      <div id="state-status">
-        <span id="state-dot" class="dead"></span>
-        <span id="state-text" class="dead">OFFLINE</span>
+
+    <!-- TOP RIGHT: Vitals -->
+    <div class="card" style="top:64px;right:16px;width:220px">
+      <div class="clbl">Vital Signs</div>
+      <div class="vrow">
+        <span class="vkey">Breathing</span>
+        <span class="vval" id="vit-br" style="color: rgba(46, 45, 41, 0.55);"><span class="num">--</span> BPM</span>
+      </div>
+      <div class="vsep-line"></div>
+      <div class="vrow">
+        <span class="vkey">Heart Rate</span>
+        <span class="vval" style="color: rgba(46, 45, 41, 0.55);"><span class="num">—</span> BPM</span>
+      </div>
+      <div class="vsep-line"></div>
+      <div class="vrow">
+        <span class="vkey">Confidence</span>
+        <span class="vval" id="vit-conf" style="color: rgba(46, 45, 41, 0.55);"><span class="num">0</span>%</span>
+      </div>
+      <div id="conf-bar-bg">
+        <div id="conf-bar-fill"></div>
       </div>
     </div>
-  </header>
 
-  <!-- TOP LEFT: Presence -->
-  <div class="card" style="top:64px;left:16px;width:200px">
-    <div class="clbl">Presence</div>
-    <div id="pres-val" style="font-size: 22px; font-weight: 600; margin-bottom: 6px; color: rgba(46, 45, 41, 0.55);">VACANT</div>
-    <div id="pres-pers" style="font-size: 10px; color: rgba(46, 45, 41, 0.7); letter-spacing: 0.05em; font-weight: 500; text-transform: uppercase;"><span class="num">0</span> PERSONS DETECTED</div>
-  </div>
-
-  <!-- TOP RIGHT: Vitals -->
-  <div class="card" style="top:64px;right:16px;width:220px">
-    <div class="clbl">Vital Signs</div>
-    <div class="vrow">
-      <span class="vkey">Breathing</span>
-      <span class="vval" id="vit-br" style="color: rgba(46, 45, 41, 0.55);"><span class="num">--</span> BPM</span>
-    </div>
-    <div class="vsep-line"></div>
-    <div class="vrow">
-      <span class="vkey">Heart Rate</span>
-      <span class="vval" style="color: rgba(46, 45, 41, 0.55);"><span class="num">—</span> BPM</span>
-    </div>
-    <div class="vsep-line"></div>
-    <div class="vrow">
-      <span class="vkey">Confidence</span>
-      <span class="vval" id="vit-conf" style="color: rgba(46, 45, 41, 0.55);"><span class="num">0</span>%</span>
-    </div>
-    <div id="conf-bar-bg"><div id="conf-bar-fill"></div></div>
-  </div>
-
-  <!-- BOTTOM CENTER -->
-  <div id="bar-btm">
-    <div class="bbi">
-      <span class="bkey">RSSI</span>
-      <span class="bval" id="bb-rssi"><span class="num">---</span> dBm</span>
-    </div>
-    <div class="bsep"></div>
-    <div class="bbi" style="flex-direction:row;gap:12px">
+    <!-- BOTTOM CENTER -->
+    <div id="bar-btm">
       <div class="bbi">
-         <span class="bkey">Motion</span>
-         <span class="bval" id="bb-mot"><span class="num">0.00</span></span>
+        <span class="bkey">RSSI</span>
+        <span class="bval" id="bb-rssi"><span class="num">---</span> dBm</span>
       </div>
-      <div id="mot-hist" style="display:flex;align-items:flex-end;gap:3px;height:20px;width:30px"></div>
+      <div class="bsep"></div>
+      <div class="bbi" style="flex-direction:row;gap:12px">
+        <div class="bbi">
+          <span class="bkey">Motion</span>
+          <span class="bval" id="bb-mot"><span class="num">0.00</span></span>
+        </div>
+        <div id="mot-hist" style="display:flex;align-items:flex-end;gap:3px;height:20px;width:30px"></div>
+      </div>
+      <div class="bsep"></div>
+      <div class="bbi">
+        <span class="bkey">BR</span>
+        <span class="bval" id="bb-br"><span class="num">--</span></span>
+      </div>
+      <div class="bsep"></div>
+      <div class="bbi">
+        <span class="bkey">Signal</span>
+        <span class="bval" id="bb-sig" style="font-family: system-ui; font-weight: 600;">---</span>
+      </div>
     </div>
-    <div class="bsep"></div>
-    <div class="bbi">
-      <span class="bkey">BR</span>
-      <span class="bval" id="bb-br"><span class="num">--</span></span>
+
+    <!-- BOTTOM LEFT -->
+    <div id="conn-info">
+      <div id="conn-line">
+        <div id="conn-dot" class="dead"></div>
+        <span id="conn-lbl">DISCONNECTED</span>
+      </div>
+      <div id="conn-ip"></div>
+      <div
+        style="font-family: system-ui; font-size: 9px; color: rgba(46, 45, 41, 0.65); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 6px;">
+        SPARS // ESP32-S3</div>
     </div>
-    <div class="bsep"></div>
-    <div class="bbi">
-      <span class="bkey">Signal</span>
-      <span class="bval" id="bb-sig" style="font-family: system-ui; font-weight: 600;">---</span>
+
+    <!-- ZONE LEGEND -->
+    <div id="zone-legend" class="card" style="bottom:70px;right:16px;width:200px;">
+      <div class="clbl" style="margin-bottom: 8px;">SENSING ZONES</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <div style="width:6px;height:6px;border-radius:50%;background:#2e2d29"></div>
+        <div
+          style="font-family:system-ui; font-size:10px; font-weight: 500; letter-spacing: 0.02em; color:rgba(46, 45, 41, 0.7)">
+          INNER (0-2M) — VITALS</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <div style="width:6px;height:6px;border-radius:50%;background:#946f32"></div>
+        <div
+          style="font-family:system-ui; font-size:10px; font-weight: 500; letter-spacing: 0.02em; color:rgba(46, 45, 41, 0.7)">
+          MID (2-4M) — PRESENCE</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:6px;height:6px;border-radius:50%;background:rgba(46, 45, 41, 0.3)"></div>
+        <div
+          style="font-family:system-ui; font-size:10px; font-weight: 500; letter-spacing: 0.02em; color:rgba(46, 45, 41, 0.7)">
+          OUTER (4-6M) — MOTION</div>
+      </div>
+    </div>
+
+    <!-- BOTTOM RIGHT -->
+    <div id="branding">
+      <div
+        style="font-family: system-ui; font-size: 11px; font-weight: 600; color: #2e2d29; letter-spacing: 0.1em; line-height: 1.2;">
+        SPARS</div>
+      <div
+        style="font-family: system-ui; font-size: 8px; color: rgba(46, 45, 41, 0.65); letter-spacing: 0.15em; text-transform: uppercase; margin-top: 2px;">
+        WAVES SAVES LIFE</div>
     </div>
   </div>
 
-  <!-- BOTTOM LEFT -->
-  <div id="conn-info">
-    <div id="conn-line">
-      <div id="conn-dot" class="dead"></div>
-      <span id="conn-lbl">DISCONNECTED</span>
-    </div>
-    <div id="conn-ip"></div>
-    <div style="font-family: system-ui; font-size: 9px; color: rgba(46, 45, 41, 0.65); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 6px;">SPARS // ESP32-S3</div>
-  </div>
+  <script>
+    (function () {
+      'use strict';
 
-  <!-- ZONE LEGEND -->
-  <div id="zone-legend" class="card" style="bottom:70px;right:16px;width:200px;">
-    <div class="clbl" style="margin-bottom: 8px;">SENSING ZONES</div>
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-      <div style="width:6px;height:6px;border-radius:50%;background:#2e2d29"></div>
-      <div style="font-family:system-ui; font-size:10px; font-weight: 500; letter-spacing: 0.02em; color:rgba(46, 45, 41, 0.7)">INNER (0-2M) — VITALS</div>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-      <div style="width:6px;height:6px;border-radius:50%;background:#946f32"></div>
-      <div style="font-family:system-ui; font-size:10px; font-weight: 500; letter-spacing: 0.02em; color:rgba(46, 45, 41, 0.7)">MID (2-4M) — PRESENCE</div>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px">
-      <div style="width:6px;height:6px;border-radius:50%;background:rgba(46, 45, 41, 0.3)"></div>
-      <div style="font-family:system-ui; font-size:10px; font-weight: 500; letter-spacing: 0.02em; color:rgba(46, 45, 41, 0.7)">OUTER (4-6M) — MOTION</div>
-    </div>
-  </div>
+      /* ═══════════════════════════════════════════════════
+         CONSTANTS
+      ═══════════════════════════════════════════════════ */
+      var RINGS = 8;
+      var SEGS = 16;        // 16 angular segments, 22.5° each
+      var SEG_DEG = 22.5;      // degrees per segment
+      var RS = 65;        // ring spacing px
+      var MAX_EXTR = 45;        // max extrusion px
 
-  <!-- BOTTOM RIGHT -->
-  <div id="branding">
-    <div style="font-family: system-ui; font-size: 11px; font-weight: 600; color: #2e2d29; letter-spacing: 0.1em; line-height: 1.2;">SPARS</div>
-    <div style="font-family: system-ui; font-size: 8px; color: rgba(46, 45, 41, 0.65); letter-spacing: 0.15em; text-transform: uppercase; margin-top: 2px;">WAVES SAVES LIFE</div>
-  </div>
-</div>
+      // Compass labels: [angleDeg, label] for cardinal + ordinal directions
+      var COMPASS = [
+        [0, 'N'], [22.5, 'NNE'], [45, 'NE'], [67.5, 'ENE'],
+        [90, 'E'], [112.5, 'ESE'], [135, 'SE'], [157.5, 'SSE'],
+        [180, 'S'], [202.5, 'SSW'], [225, 'SW'], [247.5, 'WSW'],
+        [270, 'W'], [292.5, 'WNW'], [315, 'NW'], [337.5, 'NNW']
+      ];
+      // Only draw main 8 compass points
+      var COMPASS_MAIN = [
+        [0, 'N'], [45, 'NE'], [90, 'E'], [135, 'SE'],
+        [180, 'S'], [225, 'SW'], [270, 'W'], [315, 'NW']
+      ];
 
-<script>
-(function(){
-'use strict';
+      // Ring labels [ringNum, label]
+      var RING_LABELS = [[2, '1M'], [4, '2M'], [6, '4M'], [8, '6M']];
 
-/* ═══════════════════════════════════════════════════
-   CONSTANTS
-═══════════════════════════════════════════════════ */
-var RINGS    = 8;
-var SEGS     = 16;        // 16 angular segments, 22.5° each
-var SEG_DEG  = 22.5;      // degrees per segment
-var RS       = 65;        // ring spacing px
-var MAX_EXTR = 45;        // max extrusion px
+      /* ═══════════════════════════════════════════════════
+         CANVAS + DRAG/ROTATE STATE
+      ═══════════════════════════════════════════════════ */
+      var canvas = document.getElementById('c');
+      var ctx = canvas.getContext('2d');
+      var W = 0, H = 0, OX = 0, OY = 0;
 
-// Compass labels: [angleDeg, label] for cardinal + ordinal directions
-var COMPASS = [
-  [0,   'N' ], [22.5,'NNE'], [45,  'NE' ], [67.5,'ENE'],
-  [90,  'E' ], [112.5,'ESE'],[135, 'SE' ], [157.5,'SSE'],
-  [180, 'S' ], [202.5,'SSW'],[225, 'SW' ], [247.5,'WSW'],
-  [270, 'W' ], [292.5,'WNW'],[315, 'NW' ], [337.5,'NNW']
-];
-// Only draw main 8 compass points
-var COMPASS_MAIN = [
-  [0,'N'],[45,'NE'],[90,'E'],[135,'SE'],
-  [180,'S'],[225,'SW'],[270,'W'],[315,'NW']
-];
+      // Orbit: viewAngle rotates the whole grid around its center
+      var viewAngle = 0;   // radians — user can rotate
+      var viewPitch = 0.4; // isometric pitch factor (0.4 = default)
+      var isDragging = false;
+      var dragX = 0, dragY = 0;
+      var dragAngle = 0;
 
-// Ring labels [ringNum, label]
-var RING_LABELS = [[2,'1M'],[4,'2M'],[6,'4M'],[8,'6M']];
+      function resize() {
+        var dpr = window.devicePixelRatio || 1;
+        W = window.innerWidth;
+        H = window.innerHeight;
+        canvas.width = Math.round(W * dpr);
+        canvas.height = Math.round(H * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        OX = W / 2;
+        OY = H * 0.42;
+      }
+      window.addEventListener('resize', resize);
+      resize();
 
-/* ═══════════════════════════════════════════════════
-   CANVAS + DRAG/ROTATE STATE
-═══════════════════════════════════════════════════ */
-var canvas = document.getElementById('c');
-var ctx    = canvas.getContext('2d');
-var W=0, H=0, OX=0, OY=0;
+      // Mouse drag to rotate
+      canvas.addEventListener('mousedown', function (e) {
+        isDragging = true;
+        dragX = e.clientX;
+        dragY = e.clientY;
+        dragAngle = viewAngle;
+        canvas.classList.add('dragging');
+      });
+      window.addEventListener('mousemove', function (e) {
+        if (!isDragging) return;
+        var dx = e.clientX - dragX;
+        viewAngle = dragAngle + dx * 0.008;
+      });
+      window.addEventListener('mouseup', function () {
+        isDragging = false;
+        canvas.classList.remove('dragging');
+      });
 
-// Orbit: viewAngle rotates the whole grid around its center
-var viewAngle  = 0;   // radians — user can rotate
-var viewPitch  = 0.4; // isometric pitch factor (0.4 = default)
-var isDragging = false;
-var dragX      = 0, dragY = 0;
-var dragAngle  = 0;
+      // Touch drag
+      canvas.addEventListener('touchstart', function (e) {
+        isDragging = true;
+        dragX = e.touches[0].clientX;
+        dragY = e.touches[0].clientY;
+        dragAngle = viewAngle;
+      });
+      window.addEventListener('touchmove', function (e) {
+        if (!isDragging) return;
+        var dx = e.touches[0].clientX - dragX;
+        viewAngle = dragAngle + dx * 0.008;
+      });
+      window.addEventListener('touchend', function () { isDragging = false; });
 
-function resize(){
-  var dpr = window.devicePixelRatio || 1;
-  W = window.innerWidth;
-  H = window.innerHeight;
-  canvas.width  = Math.round(W * dpr);
-  canvas.height = Math.round(H * dpr);
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  OX = W / 2;
-  OY = H * 0.42;
-}
-window.addEventListener('resize', resize);
-resize();
+      /* ═══════════════════════════════════════════════════
+         STATE
+      ═══════════════════════════════════════════════════ */
+      // [ring-index 0-7][segment 0-15]
+      var htarget = [];
+      var hcurrent = [];
+      for (var _r = 0; _r < RINGS; _r++) {
+        htarget.push(new Float32Array(SEGS));
+        hcurrent.push(new Float32Array(SEGS));
+        htarget[_r].fill(0.02);
+      }
 
-// Mouse drag to rotate
-canvas.addEventListener('mousedown', function(e){
-  isDragging = true;
-  dragX      = e.clientX;
-  dragY      = e.clientY;
-  dragAngle  = viewAngle;
-  canvas.classList.add('dragging');
-});
-window.addEventListener('mousemove', function(e){
-  if(!isDragging) return;
-  var dx = e.clientX - dragX;
-  viewAngle = dragAngle + dx * 0.008;
-});
-window.addEventListener('mouseup', function(){
-  isDragging = false;
-  canvas.classList.remove('dragging');
-});
+      var motionHist = [0, 0, 0, 0, 0];
+      var lastData = { presence: 'EMPTY', person_count: 0, motion_score: 0, br_bpm: 0, rssi: -60, subcarriers: [] };
+      var isDemo = false, isConn = false;
+      var ws = null, fallTimer = null, reconTimer = null, demoTimer = null;
+      var pulseT = 0;
 
-// Touch drag
-canvas.addEventListener('touchstart', function(e){
-  isDragging = true;
-  dragX      = e.touches[0].clientX;
-  dragY      = e.touches[0].clientY;
-  dragAngle  = viewAngle;
-});
-window.addEventListener('touchmove', function(e){
-  if(!isDragging) return;
-  var dx = e.touches[0].clientX - dragX;
-  viewAngle = dragAngle + dx * 0.008;
-});
-window.addEventListener('touchend', function(){ isDragging = false; });
+      // Demo state
+      var demoTick = 0, demoPhase = 0, demoPhaseTimer = 0, demoHotSeg = 0, demoHotDir = 1;
+      var DPHASES = [
+        { p: 'EMPTY', pc: 0, dur: 80 },
+        { p: 'SINGLE', pc: 1, dur: 150 },
+        { p: 'MULTI', pc: 2, dur: 80 }
+      ];
 
-/* ═══════════════════════════════════════════════════
-   STATE
-═══════════════════════════════════════════════════ */
-// [ring-index 0-7][segment 0-15]
-var htarget  = [];
-var hcurrent = [];
-for(var _r=0; _r<RINGS; _r++){
-  htarget.push(new Float32Array(SEGS));
-  hcurrent.push(new Float32Array(SEGS));
-  htarget[_r].fill(0.02);
-}
+      /* ═══════════════════════════════════════════════════
+         ISO PROJECTION (with rotation)
+      ═══════════════════════════════════════════════════ */
+      function isoPoint(ring, angDeg) {
+        var a = (angDeg + viewAngle * 180 / Math.PI) * Math.PI / 180;
+        var rad = ring * RS;
+        var x = rad * Math.cos(a);
+        var y = rad * Math.sin(a);
+        return {
+          x: OX + x - y * 0.5,
+          y: OY + (x + y) * 0.4
+        };
+      }
 
-var motionHist = [0,0,0,0,0];
-var lastData = {presence:'EMPTY',person_count:0,motion_score:0,br_bpm:0,rssi:-60,subcarriers:[]};
-var isDemo=false, isConn=false;
-var ws=null, fallTimer=null, reconTimer=null, demoTimer=null;
-var pulseT=0;
+      /* ═══════════════════════════════════════════════════
+         COLOR
+      ═══════════════════════════════════════════════════ */
+      function heatRGB(h) {
+        var r, g, b, t;
+        if (h < 0.25) {
+          // Transition from light beige #eae8e1 [234, 232, 225] to soft green #b8e2c8 [184, 226, 200]
+          t = h / 0.25;
+          r = Math.round(234 + (184 - 234) * t);
+          g = Math.round(232 + (226 - 232) * t);
+          b = Math.round(225 + (200 - 225) * t);
+        } else if (h < 0.50) {
+          // Transition from soft green #b8e2c8 [184, 226, 200] to vibrant green #2ebd59 [46, 189, 89]
+          t = (h - 0.25) / 0.25;
+          r = Math.round(184 + (46 - 184) * t);
+          g = Math.round(226 + (189 - 226) * t);
+          b = Math.round(200 + (89 - 200) * t);
+        } else if (h < 0.70) {
+          // Transition from vibrant green #2ebd59 [46, 189, 89] to gold/yellow #e2be7a [226, 190, 122]
+          t = (h - 0.50) / 0.20;
+          r = Math.round(46 + (226 - 46) * t);
+          g = Math.round(189 + (190 - 189) * t);
+          b = Math.round(89 + (122 - 89) * t);
+        } else if (h < 0.85) {
+          // Transition from gold/yellow #e2be7a [226, 190, 122] to orange #e07a5f [224, 122, 95]
+          t = (h - 0.70) / 0.15;
+          r = Math.round(226 + (224 - 226) * t);
+          g = Math.round(190 + (122 - 190) * t);
+          b = Math.round(122 + (95 - 122) * t);
+        } else {
+          // Transition from orange #e07a5f [224, 122, 95] to red #e63946 [230, 57, 70]
+          t = Math.min(1.0, (h - 0.85) / 0.15);
+          r = Math.round(224 + (230 - 224) * t);
+          g = Math.round(122 + (57 - 122) * t);
+          b = Math.round(95 + (70 - 95) * t);
+        }
+        return [Math.min(255, Math.max(0, r)), Math.min(255, Math.max(0, g)), Math.min(255, Math.max(0, b))];
+      }
 
-// Demo state
-var demoTick=0, demoPhase=0, demoPhaseTimer=0, demoHotSeg=0, demoHotDir=1;
-var DPHASES=[
-  {p:'EMPTY',  pc:0, dur:80 },
-  {p:'SINGLE', pc:1, dur:150},
-  {p:'MULTI',  pc:2, dur:80 }
-];
+      function rgb(r, g, b) { return 'rgb(' + r + ',' + g + ',' + b + ')'; }
+      function rgba(r, g, b, a) { return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')'; }
+      function darken(c, f) { return [Math.round(c[0] * f), Math.round(c[1] * f), Math.round(c[2] * f)]; }
 
-/* ═══════════════════════════════════════════════════
-   ISO PROJECTION (with rotation)
-═══════════════════════════════════════════════════ */
-function isoPoint(ring, angDeg){
-  var a   = (angDeg + viewAngle * 180 / Math.PI) * Math.PI / 180;
-  var rad = ring * RS;
-  var x   = rad * Math.cos(a);
-  var y   = rad * Math.sin(a);
-  return {
-    x: OX + x - y * 0.5,
-    y: OY + (x + y) * 0.4
-  };
-}
+      /* ═══════════════════════════════════════════════════
+         POLYGON HELPERS
+       ═══════════════════════════════════════════════════ */
+      function fillPoly(pts, color) {
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (var i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+      }
+      function strokePoly(pts, color, lw) {
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (var i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+        ctx.closePath();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = lw || 0.5;
+        ctx.stroke();
+      }
 
-/* ═══════════════════════════════════════════════════
-   COLOR
-═══════════════════════════════════════════════════ */
-function heatRGB(h){
-  var r, g, b, t;
-  if(h < 0.25){
-    // Transition from light beige #eae8e1 [234, 232, 225] to soft green #b8e2c8 [184, 226, 200]
-    t = h / 0.25;
-    r = Math.round(234 + (184 - 234) * t);
-    g = Math.round(232 + (226 - 232) * t);
-    b = Math.round(225 + (200 - 225) * t);
-  } else if(h < 0.50){
-    // Transition from soft green #b8e2c8 [184, 226, 200] to vibrant green #2ebd59 [46, 189, 89]
-    t = (h - 0.25) / 0.25;
-    r = Math.round(184 + (46 - 184) * t);
-    g = Math.round(226 + (189 - 226) * t);
-    b = Math.round(200 + (89 - 200) * t);
-  } else if(h < 0.70){
-    // Transition from vibrant green #2ebd59 [46, 189, 89] to gold/yellow #e2be7a [226, 190, 122]
-    t = (h - 0.50) / 0.20;
-    r = Math.round(46 + (226 - 46) * t);
-    g = Math.round(189 + (190 - 189) * t);
-    b = Math.round(89 + (122 - 89) * t);
-  } else if(h < 0.85){
-    // Transition from gold/yellow #e2be7a [226, 190, 122] to orange #e07a5f [224, 122, 95]
-    t = (h - 0.70) / 0.15;
-    r = Math.round(226 + (224 - 226) * t);
-    g = Math.round(190 + (122 - 190) * t);
-    b = Math.round(122 + (95 - 122) * t);
-  } else {
-    // Transition from orange #e07a5f [224, 122, 95] to red #e63946 [230, 57, 70]
-    t = Math.min(1.0, (h - 0.85) / 0.15);
-    r = Math.round(224 + (230 - 224) * t);
-    g = Math.round(122 + (57 - 122) * t);
-    b = Math.round(95 + (70 - 95) * t);
-  }
-  return [Math.min(255,Math.max(0,r)), Math.min(255,Math.max(0,g)), Math.min(255,Math.max(0,b))];
-}
+      /* ═══════════════════════════════════════════════════
+         DRAW CELL — used in sort-by-screenY pipeline
+       ═══════════════════════════════════════════════════ */
+      function drawCell(ri, si, heat) {
+        var extH = heat * MAX_EXTR;
+        var a0 = si * SEG_DEG;
+        var a1 = (si + 1) * SEG_DEG;
 
-function rgb(r,g,b)  { return 'rgb('+r+','+g+','+b+')'; }
-function rgba(r,g,b,a){ return 'rgba('+r+','+g+','+b+','+a+')'; }
-function darken(c,f)  { return [Math.round(c[0]*f), Math.round(c[1]*f), Math.round(c[2]*f)]; }
+        var AG = isoPoint(ri, a0);
+        var BG = isoPoint(ri, a1);
+        var CG = isoPoint(ri + 1, a1);
+        var DG = isoPoint(ri + 1, a0);
 
-/* ═══════════════════════════════════════════════════
-   POLYGON HELPERS
- ═══════════════════════════════════════════════════ */
-function fillPoly(pts, color){
-  ctx.beginPath();
-  ctx.moveTo(pts[0].x, pts[0].y);
-  for(var i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
-  ctx.closePath();
-  ctx.fillStyle = color;
-  ctx.fill();
-}
-function strokePoly(pts, color, lw){
-  ctx.beginPath();
-  ctx.moveTo(pts[0].x, pts[0].y);
-  for(var i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
-  ctx.closePath();
-  ctx.strokeStyle = color;
-  ctx.lineWidth = lw || 0.5;
-  ctx.stroke();
-}
+        var col = heatRGB(heat);
 
-/* ═══════════════════════════════════════════════════
-   DRAW CELL — used in sort-by-screenY pipeline
- ═══════════════════════════════════════════════════ */
-function drawCell(ri, si, heat){
-  var extH = heat * MAX_EXTR;
-  var a0   = si * SEG_DEG;
-  var a1   = (si + 1) * SEG_DEG;
+        if (extH < 0.5) {
+          fillPoly([AG, BG, CG, DG], '#eae8e1');
+          strokePoly([AG, BG, CG, DG], 'rgba(46, 45, 41, 0.08)', 0.4);
+          return;
+        }
 
-  var AG = isoPoint(ri,   a0);
-  var BG = isoPoint(ri,   a1);
-  var CG = isoPoint(ri+1, a1);
-  var DG = isoPoint(ri+1, a0);
+        var AT = { x: AG.x, y: AG.y - extH };
+        var BT = { x: BG.x, y: BG.y - extH };
+        var CT = { x: CG.x, y: CG.y - extH };
+        var DT = { x: DG.x, y: DG.y - extH };
 
-  var col = heatRGB(heat);
+        var topColor = rgb(col[0], col[1], col[2]);
+        var wallOuter = darken(col, 0.85);
+        var wallInner = darken(col, 0.75);
 
-  if(extH < 0.5){
-    fillPoly([AG,BG,CG,DG], '#eae8e1');
-    strokePoly([AG,BG,CG,DG], 'rgba(46, 45, 41, 0.08)', 0.4);
-    return;
-  }
+        // Which wall faces viewer (depends on view angle)
+        var ca = (si + 0.5) * SEG_DEG * Math.PI / 180 + viewAngle;
+        var facing = Math.cos(ca) + Math.sin(ca);
 
-  var AT = {x:AG.x, y:AG.y - extH};
-  var BT = {x:BG.x, y:BG.y - extH};
-  var CT = {x:CG.x, y:CG.y - extH};
-  var DT = {x:DG.x, y:DG.y - extH};
+        if (facing > 0.05) {
+          fillPoly([DT, CT, CG, DG], rgb(wallOuter[0], wallOuter[1], wallOuter[2]));
+          strokePoly([DT, CT, CG, DG], 'rgba(46, 45, 41, 0.15)', 0.3);
+        } else if (facing < -0.05) {
+          fillPoly([AT, BT, BG, AG], rgb(wallInner[0], wallInner[1], wallInner[2]));
+          strokePoly([AT, BT, BG, AG], 'rgba(46, 45, 41, 0.15)', 0.3);
+        }
 
-  var topColor  = rgb(col[0], col[1], col[2]);
-  var wallOuter = darken(col, 0.85);
-  var wallInner = darken(col, 0.75);
+        fillPoly([AT, BT, CT, DT], topColor);
+        strokePoly([AT, BT, CT, DT], 'rgba(46, 45, 41, 0.2)', 0.4);
+      }
 
-  // Which wall faces viewer (depends on view angle)
-  var ca = (si + 0.5) * SEG_DEG * Math.PI / 180 + viewAngle;
-  var facing = Math.cos(ca) + Math.sin(ca);
+      /* ═══════════════════════════════════════════════════
+         GRID GUIDES
+       ═══════════════════════════════════════════════════ */
+      function drawGridGuides() {
+        for (var ring = 1; ring <= RINGS; ring++) {
+          var isMain = (ring % 2 === 0);
+          ctx.strokeStyle = isMain ? 'rgba(46, 45, 41, 0.15)' : 'rgba(46, 45, 41, 0.08)';
+          ctx.lineWidth = isMain ? 1 : 0.5;
+          if (isMain) ctx.setLineDash([4, 6]);
+          else ctx.setLineDash([]);
 
-  if(facing > 0.05){
-    fillPoly([DT,CT,CG,DG], rgb(wallOuter[0],wallOuter[1],wallOuter[2]));
-    strokePoly([DT,CT,CG,DG], 'rgba(46, 45, 41, 0.15)', 0.3);
-  } else if(facing < -0.05){
-    fillPoly([AT,BT,BG,AG], rgb(wallInner[0],wallInner[1],wallInner[2]));
-    strokePoly([AT,BT,BG,AG], 'rgba(46, 45, 41, 0.15)', 0.3);
-  }
-
-  fillPoly([AT,BT,CT,DT], topColor);
-  strokePoly([AT,BT,CT,DT], 'rgba(46, 45, 41, 0.2)', 0.4);
-}
-
-/* ═══════════════════════════════════════════════════
-   GRID GUIDES
- ═══════════════════════════════════════════════════ */
-function drawGridGuides(){
-  for(var ring=1; ring<=RINGS; ring++){
-    var isMain = (ring % 2 === 0);
-    ctx.strokeStyle = isMain ? 'rgba(46, 45, 41, 0.15)' : 'rgba(46, 45, 41, 0.08)';
-    ctx.lineWidth = isMain ? 1 : 0.5;
-    if(isMain) ctx.setLineDash([4, 6]);
-    else ctx.setLineDash([]);
-
-    ctx.beginPath();
-    var first = true;
-    for(var a=0; a<=360; a+=2){
-      var pt = isoPoint(ring, a);
-      if(first){ ctx.moveTo(pt.x, pt.y); first=false; }
-      else       ctx.lineTo(pt.x, pt.y);
-    }
-    ctx.closePath();
-    ctx.stroke();
-  }
-  ctx.setLineDash([]);
-  // Radial segment dividers
-  ctx.strokeStyle = 'rgba(46, 45, 41, 0.06)';
-  ctx.lineWidth   = 0.4;
-  for(var s=0; s<SEGS; s++){
-    var outer = isoPoint(RINGS, s * SEG_DEG);
-    ctx.beginPath();
-    ctx.moveTo(OX, OY);
-    ctx.lineTo(outer.x, outer.y);
-    ctx.stroke();
-  }
-}
-
-/* ═══════════════════════════════════════════════════
-   COMPASS LABELS
- ═══════════════════════════════════════════════════ */
-function drawCompass(){
-  ctx.textAlign    = 'center';
-  ctx.textBaseline = 'middle';
-  for(var i=0; i<COMPASS_MAIN.length; i++){
-    var angDeg = COMPASS_MAIN[i][0];
-    var label  = COMPASS_MAIN[i][1];
-    var pt = isoPoint(8.85, angDeg);
-    var isCard = (label==='N'||label==='S'||label==='E'||label==='W');
-    ctx.fillStyle = 'rgba(46, 45, 41, 0.5)';
-    ctx.font = isCard
-      ? 'bold 11px system-ui, -apple-system, sans-serif'
-      : '9px system-ui, -apple-system, sans-serif';
-    ctx.fillText(label, pt.x, pt.y);
-  }
-  ctx.textAlign    = 'left';
-  ctx.textBaseline = 'alphabetic';
-}
-
-/* ═══════════════════════════════════════════════════
-   RING LABELS
- ═══════════════════════════════════════════════════ */
-function drawRingLabels(){
-  ctx.font         = '10px system-ui, -apple-system, sans-serif';
-  ctx.textAlign    = 'center';
-  ctx.textBaseline = 'middle';
-  for(var i=0; i<RING_LABELS.length; i++){
-    var ring = RING_LABELS[i][0];
-    var text = RING_LABELS[i][1];
-    var pt = isoPoint(ring, 90);
-    var px = pt.x + 20; 
-    var py = pt.y;
-    
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-    ctx.strokeStyle = 'rgba(46, 45, 41, 0.12)';
-    ctx.lineWidth = 1;
-    var w = 26, h = 14;
-    ctx.beginPath();
-    ctx.rect(px - w/2, py - h/2, w, h); // rect for sharp corners
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = 'rgba(46, 45, 41, 0.6)';
-    ctx.fillText(text, px, py + 1);
-  }
-  ctx.textAlign    = 'left';
-  ctx.textBaseline = 'alphabetic';
-}
-
-/* ═══════════════════════════════════════════════════
-   ESP32 CENTER NODE
- ═══════════════════════════════════════════════════ */
-function drawCenter(){
-  var t     = pulseT * 2 * Math.PI / 2;
-  
-  var phase = (pulseT % 2.0) / 2.0; 
-  var rSize = phase * 60;
-  var rOpac = (1 - phase) * 0.8;
-  
-  ctx.beginPath();
-  ctx.strokeStyle = 'rgba(46, 45, 41, ' + rOpac.toFixed(2) + ')';
-  ctx.lineWidth = 1.5;
-  var first = true;
-  for(var a=0; a<=360; a+=10){
-    var aRad = a * Math.PI/180 + viewAngle;
-    var rx = Math.cos(aRad) * rSize;
-    var ry = Math.sin(aRad) * rSize;
-    var px = OX + rx - ry * 0.5;
-    var py = OY + (rx + ry) * 0.4;
-    if(first){ ctx.moveTo(px, py); first=false; }
-    else     { ctx.lineTo(px, py); }
-  }
-  ctx.closePath();
-  ctx.stroke();
-
-  ctx.fillStyle = '#2e2d29';
-  ctx.fillRect(OX - 7, OY - 4, 14, 8);
-  
-  ctx.beginPath();
-  ctx.strokeStyle = '#2e2d29';
-  ctx.lineWidth = 1.5;
-  ctx.moveTo(OX, OY - 4);
-  ctx.lineTo(OX, OY - 12);
-  ctx.stroke();
-
-  ctx.fillStyle   = '#2e2d29';
-  ctx.font        = '10px system-ui, -apple-system, sans-serif';
-  ctx.textAlign   = 'center';
-  ctx.textBaseline= 'bottom';
-  ctx.fillText('ESP32-S3', OX, OY + 16);
-  ctx.textAlign   = 'left';
-  ctx.textBaseline= 'alphabetic';
-}
-
-/* ═══════════════════════════════════════════════════
-   PRESENCE BEACON
-═══════════════════════════════════════════════════ */
-function findHottest(){
-  var bestH=-1, bestR=0, bestS=0;
-  for(var r=0;r<RINGS;r++){
-    for(var s=0;s<SEGS;s++){
-      if(hcurrent[r][s]>bestH){bestH=hcurrent[r][s];bestR=r;bestS=s;}
-    }
-  }
-  return {ri:bestR,si:bestS,heat:bestH};
-}
-
-function drawBeaconAt(ri, si, heat, colorHex, phase){
-  var extH  = heat * MAX_EXTR;
-  var cAng  = (si + 0.5) * SEG_DEG;
-  var pt    = isoPoint(ri + 0.5, cAng);
-  var bx    = pt.x, by = pt.y - extH;
-  
-  var pa = 0.85 + 0.15 * Math.sin(pulseT * 2 * Math.PI * 1.0 + phase); // 1 Hz pulse
-  
-  ctx.save();
-  ctx.globalAlpha = pa;
-
-  var hex = colorHex.replace('#','');
-  var r = parseInt(hex.substring(0,2), 16);
-  var g = parseInt(hex.substring(2,4), 16);
-  var b = parseInt(hex.substring(4,6), 16);
-  
-  var fy = by - 40; 
-  
-  var coneGrad = ctx.createLinearGradient(bx, fy, bx, by);
-  coneGrad.addColorStop(0, rgba(r,g,b,0.4));
-  coneGrad.addColorStop(1, rgba(r,g,b,0.0));
-  
-  ctx.beginPath();
-  ctx.moveTo(bx, fy);
-  ctx.lineTo(bx - 15, by);
-  ctx.lineTo(bx + 15, by);
-  ctx.closePath();
-  ctx.fillStyle = coneGrad;
-  ctx.fill();
-
-  var beamGrad = ctx.createLinearGradient(bx, fy - 80, bx, fy);
-  beamGrad.addColorStop(0, rgba(r,g,b,0.0));
-  beamGrad.addColorStop(1, rgba(r,g,b,0.5));
-  ctx.fillStyle = beamGrad;
-  ctx.fillRect(bx - 1, fy - 80, 2, 80);
-
-  var hy = fy - 20; 
-  
-  ctx.strokeStyle = colorHex;
-  ctx.lineWidth = 2;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  
-  ctx.beginPath();
-  ctx.arc(bx, hy - 8, 8, 0, Math.PI * 2);
-  ctx.moveTo(bx, hy);
-  ctx.lineTo(bx, fy);
-  ctx.moveTo(bx, hy + 4);
-  ctx.lineTo(bx - 12, hy + 16);
-  ctx.moveTo(bx, hy + 4);
-  ctx.lineTo(bx + 12, hy + 16);
-  ctx.moveTo(bx, fy);
-  ctx.lineTo(bx - 8, fy + 15);
-  ctx.moveTo(bx, fy);
-  ctx.lineTo(bx + 8, fy + 15);
-  ctx.stroke();
-
-  ctx.restore();
-}
-
-/* ═══════════════════════════════════════════════════
-   RENDER LOOP — sort-by-screenY draw order
-═══════════════════════════════════════════════════ */
-function render(){
-  requestAnimationFrame(render);
-  pulseT += 0.016;
-
-  // Lerp heat
-  for(var r=0;r<RINGS;r++){
-    for(var s=0;s<SEGS;s++){
-      hcurrent[r][s] += (htarget[r][s] - hcurrent[r][s]) * 0.05;
-    }
-  }
-
-  ctx.fillStyle = '#f4f3ef';
-  ctx.fillRect(0, 0, W, H);
-
-  drawGridGuides();
-
-  // ── SORTED DRAW ORDER ──────────────────────────────
-  // Collect all 96 cells with their representative screenY
-  var cells = [];
-  for(var ri=0;ri<RINGS;ri++){
-    for(var si=0;si<SEGS;si++){
-      // Representative point: outer arc midpoint (determines depth)
-      var midAngle = (si + 0.5) * SEG_DEG;
-      var outerPt  = isoPoint(ri + 1, midAngle);
-      var innerPt  = isoPoint(ri,     midAngle);
-      var avgY     = (outerPt.y + innerPt.y) * 0.5;
-      cells.push({ri:ri, si:si, sortY:avgY});
-    }
-  }
-  // Sort ascending screenY = back-to-front
-  cells.sort(function(a,b){ return a.sortY - b.sortY; });
-
-  for(var ci=0;ci<cells.length;ci++){
-    var c = cells[ci];
-    drawCell(c.ri, c.si, hcurrent[c.ri][c.si]);
-  }
-  // ──────────────────────────────────────────────────
-
-  drawCenter();
-
-  var pres = lastData.presence;
-  if(pres === 'SINGLE' || pres === 'MULTI'){
-    var best1 = findHottest();
-    if(best1.heat >= 0.3){
-      drawBeaconAt(best1.ri, best1.si, best1.heat, '#2e2d29', 0);
-    }
-    if(pres === 'MULTI'){
-      var best2h=-1, best2r=0, best2s=0;
-      for(var r2=0;r2<RINGS;r2++){
-        for(var s2=0;s2<SEGS;s2++){
-          if(r2===best1.ri && s2===best1.si) continue;
-          if(hcurrent[r2][s2] > best2h){ best2h=hcurrent[r2][s2]; best2r=r2; best2s=s2; }
+          ctx.beginPath();
+          var first = true;
+          for (var a = 0; a <= 360; a += 2) {
+            var pt = isoPoint(ring, a);
+            if (first) { ctx.moveTo(pt.x, pt.y); first = false; }
+            else ctx.lineTo(pt.x, pt.y);
+          }
+          ctx.closePath();
+          ctx.stroke();
+        }
+        ctx.setLineDash([]);
+        // Radial segment dividers
+        ctx.strokeStyle = 'rgba(46, 45, 41, 0.06)';
+        ctx.lineWidth = 0.4;
+        for (var s = 0; s < SEGS; s++) {
+          var outer = isoPoint(RINGS, s * SEG_DEG);
+          ctx.beginPath();
+          ctx.moveTo(OX, OY);
+          ctx.lineTo(outer.x, outer.y);
+          ctx.stroke();
         }
       }
-      if(best2h >= 0.3){
-        drawBeaconAt(best2r, best2s, best2h, '#a17a3a', Math.PI);
+
+      /* ═══════════════════════════════════════════════════
+         COMPASS LABELS
+       ═══════════════════════════════════════════════════ */
+      function drawCompass() {
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for (var i = 0; i < COMPASS_MAIN.length; i++) {
+          var angDeg = COMPASS_MAIN[i][0];
+          var label = COMPASS_MAIN[i][1];
+          var pt = isoPoint(8.85, angDeg);
+          var isCard = (label === 'N' || label === 'S' || label === 'E' || label === 'W');
+          ctx.fillStyle = 'rgba(46, 45, 41, 0.5)';
+          ctx.font = isCard
+            ? 'bold 11px system-ui, -apple-system, sans-serif'
+            : '9px system-ui, -apple-system, sans-serif';
+          ctx.fillText(label, pt.x, pt.y);
+        }
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
       }
-    }
-  }
 
-  drawCompass();
-  drawRingLabels();
-}
+      /* ═══════════════════════════════════════════════════
+         RING LABELS
+       ═══════════════════════════════════════════════════ */
+      function drawRingLabels() {
+        ctx.font = '10px system-ui, -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for (var i = 0; i < RING_LABELS.length; i++) {
+          var ring = RING_LABELS[i][0];
+          var text = RING_LABELS[i][1];
+          var pt = isoPoint(ring, 90);
+          var px = pt.x + 20;
+          var py = pt.y;
 
-/* ═══════════════════════════════════════════════════
-   CSI → HEAT TARGETS  (16 segments × 4 subcarriers)
-═══════════════════════════════════════════════════ */
-function gaussian(x, mean, sigma){
-  return Math.exp(-0.5 * Math.pow((x - mean) / sigma, 2));
-}
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+          ctx.strokeStyle = 'rgba(46, 45, 41, 0.12)';
+          ctx.lineWidth = 1;
+          var w = 26, h = 14;
+          ctx.beginPath();
+          ctx.rect(px - w / 2, py - h / 2, w, h); // rect for sharp corners
+          ctx.fill();
+          ctx.stroke();
 
-function buildHeatTarget(data){
-  var subs  = data.subcarriers || [];
-  var rssi  = (data.rssi !== undefined) ? data.rssi : -60;
-  var pres  = data.presence || 'EMPTY';
-
-  // 16 segments × 4 subcarriers = 64 total
-  var segVals = new Float32Array(SEGS);
-  for(var s=0; s<SEGS; s++){
-    var start = s * 4, sum = 0;
-    for(var i=start; i<start+4; i++) sum += (subs[i] || 0);
-    segVals[s] = sum / 4;
-  }
-
-  // Normalize segment values
-  var sMin=Infinity, sMax=-Infinity;
-  for(var s2=0;s2<SEGS;s2++){
-    if(segVals[s2]<sMin) sMin=segVals[s2];
-    if(segVals[s2]>sMax) sMax=segVals[s2];
-  }
-  var sRange = sMax - sMin || 1;
-  for(var s3=0;s3<SEGS;s3++) segVals[s3]=(segVals[s3]-sMin)/sRange;
-
-  // Angular spread: apply 0.6x heat to adjacent segments
-  var segSpread = new Float32Array(SEGS);
-  for(var s4=0;s4<SEGS;s4++){
-    var left  = (s4 - 1 + SEGS) % SEGS;
-    var right = (s4 + 1) % SEGS;
-    segSpread[s4] = Math.min(1,
-      segVals[s4] +
-      segVals[left]  * 0.6 +
-      segVals[right] * 0.6
-    );
-  }
-
-  // Peak ring from RSSI
-  var peakRing;
-  if     (rssi > -35) peakRing = 1.5;
-  else if(rssi > -45) peakRing = 2.5;
-  else if(rssi > -55) peakRing = 3.5;
-  else if(rssi > -65) peakRing = 4.5;
-  else if(rssi > -75) peakRing = 5.5;
-  else                peakRing = 7.0;
-
-  var presMulti = (pres==='EMPTY') ? 0.15 : (pres==='SINGLE') ? 1.0 : 1.2;
-
-  for(var ri=0; ri<RINGS; ri++){
-    var ringNum = ri + 1;
-    var gw = gaussian(ringNum, peakRing, 2.5);  // sigma=2.5 for wide spread
-    for(var si=0; si<SEGS; si++){
-      htarget[ri][si] = Math.min(1, segSpread[si] * gw * presMulti);
-    }
-  }
-}
-
-/* ═══════════════════════════════════════════════════
-   HUD
-═══════════════════════════════════════════════════ */
-var domPresVal  = document.getElementById('pres-val');
-var domPresPers = document.getElementById('pres-pers');
-var domVitBr    = document.getElementById('vit-br');
-var domVitConf  = document.getElementById('vit-conf');
-var domConfFill = document.getElementById('conf-bar-fill');
-var domBbRssi   = document.getElementById('bb-rssi');
-var domBbMot    = document.getElementById('bb-mot');
-var domBbBr     = document.getElementById('bb-br');
-var domBbSig    = document.getElementById('bb-sig');
-var domConnDot  = document.getElementById('conn-dot');
-var domConnLbl  = document.getElementById('conn-lbl');
-var domStateDot  = document.getElementById('state-dot');
-var domStateText = document.getElementById('state-text');
-
-function updateHUD(data){
-  var p    = data.presence || 'EMPTY';
-  var pc   = (data.person_count !== undefined) ? data.person_count : 0;
-  var bpm  = data.br_bpm  || 0;
-  var rssi = (data.rssi   !== undefined) ? data.rssi : -100;
-  var ms   = data.motion_score || 0;
-
-  if(p === 'EMPTY'){
-    domPresVal.textContent = 'VACANT';
-    domPresVal.style.color = 'rgba(46, 45, 41, 0.55)';
-  } else if(p === 'SINGLE'){
-    domPresVal.textContent = 'OCCUPIED';
-    domPresVal.style.color = '#2e2d29';
-  } else {
-    domPresVal.textContent = 'MULTIPLE';
-    domPresVal.style.color = '#946f32';
-  }
-  domPresPers.innerHTML = '<span class="num">' + pc + '</span> PERSON' + (pc!==1?'S':'') + ' DETECTED';
-
-  if(bpm > 0 && p === 'SINGLE'){
-    domVitBr.innerHTML = '<span class="num">' + bpm + '</span> BPM';
-    domVitBr.style.color = '#2e2d29';
-  } else {
-    domVitBr.innerHTML = '<span class="num">--</span> BPM';
-    domVitBr.style.color = 'rgba(46, 45, 41, 0.55)';
-  }
-  var conf = (p !== 'EMPTY') ? Math.min(85 + ms*8, 99) : 0;
-  domVitConf.innerHTML  = '<span class="num">' + Math.round(conf) + '</span>%';
-  domConfFill.style.width = conf + '%';
-  if(p === 'EMPTY'){
-    domVitConf.style.color = 'rgba(46, 45, 41, 0.55)';
-  } else {
-    domVitConf.style.color = '#2e2d29';
-  }
-
-  var rc;
-  if(rssi > -45){
-    rc='#2e2d29'; domBbSig.textContent='STRONG'; domBbSig.style.color='#2e2d29';
-  } else if(rssi > -65){
-    rc='#946f32'; domBbSig.textContent='MED';    domBbSig.style.color='#946f32';
-  } else {
-    rc='rgba(46, 45, 41, 0.55)'; domBbSig.textContent='WEAK';   domBbSig.style.color='rgba(46, 45, 41, 0.55)';
-  }
-  domBbRssi.innerHTML  = '<span class="num">' + rssi + '</span> dBm';
-  domBbRssi.style.color  = rc;
-  domBbMot.innerHTML   = '<span class="num">' + ms.toFixed(2) + '</span>';
-  domBbMot.style.color   = ms<2?'#2e2d29':ms<5?'#946f32':'rgba(46, 45, 41, 0.55)';
-  
-  motionHist.shift();
-  motionHist.push(ms);
-  var motHtml = '';
-  for(var i=0; i<5; i++){
-    var v = motionHist[i];
-    var h = Math.min(20, Math.max(2, v * 4)); 
-    var c = v<2 ? '#2e2d29' : v<5 ? '#946f32' : 'rgba(46, 45, 41, 0.4)';
-    motHtml += '<div style="width:4px;height:'+h+'px;background:'+c+'; border-radius:0px"></div>';
-  }
-  document.getElementById('mot-hist').innerHTML = motHtml;
-  domBbBr.innerHTML    = bpm>0 ? '<span class="num">' + bpm + '</span> BPM' : '<span class="num">--</span>';
-
-  buildHeatTarget(data);
-}
-
-function setConnState(st){
-  domConnDot.className = '';
-  domStateDot.className = '';
-  domStateText.className = '';
-  if(st === 'live'){
-    domConnDot.className    = 'live';
-    domConnLbl.textContent  = 'LIVE';
-    domConnLbl.style.color  = '#2e2d29';
-    domStateDot.className = 'live';
-    domStateText.textContent = 'LIVE';
-    domStateText.className = 'live';
-  } else if(st === 'demo'){
-    domConnDot.className    = 'demo';
-    domConnLbl.textContent  = 'DEMO';
-    domConnLbl.style.color  = '#946f32';
-    domStateDot.className = 'demo';
-    domStateText.textContent = 'DEMO';
-    domStateText.className = 'demo';
-  } else {
-    domConnDot.className    = 'dead';
-    domConnLbl.textContent  = 'DISCONNECTED';
-    domConnLbl.style.color  = 'rgba(46, 45, 41, 0.55)';
-    domStateDot.className = 'dead';
-    domStateText.textContent = 'OFFLINE';
-    domStateText.className = 'dead';
-  }
-}
-
-/* ═══════════════════════════════════════════════════
-   DEMO MODE (updated for 16 segments, 4 subs each)
-═══════════════════════════════════════════════════ */
-function genDemo(){
-  demoTick++;
-  demoPhaseTimer++;
-  var ph = DPHASES[demoPhase];
-  if(demoPhaseTimer >= ph.dur){
-    demoPhase      = (demoPhase+1) % 3;
-    demoPhaseTimer = 0;
-  }
-  var phase = DPHASES[demoPhase];
-  var t     = demoTick * 0.1;
-
-  if(demoTick % 20 === 0){
-    demoHotSeg = (demoHotSeg + demoHotDir + SEGS) % SEGS;
-    if(demoHotSeg === 0 || demoHotSeg === SEGS-1) demoHotDir *= -1;
-  }
-
-  var rCyc = (demoTick % 200) / 200;
-  var rssi = Math.round(-35 + (-60+35) * 0.5 * (1 - Math.cos(rCyc * 2 * Math.PI)));
-
-  // 64 subcarriers: 16 segments × 4 each
-  var subs = new Array(64);
-  for(var i=0; i<64; i++){
-    var base  = 10 + 2 * Math.sin(t*0.3 + i*0.1);
-    var noise = (Math.random() - 0.5) * 1.5;
-    var seg   = Math.floor(i / 4);   // which of the 16 segments
-    var hot   = 0;
-    if(phase.p !== 'EMPTY'){
-      var dist = Math.min(
-        Math.abs(seg - demoHotSeg),
-        SEGS - Math.abs(seg - demoHotSeg)
-      );
-      if(dist <= 2){
-        var spread = 1 - dist * 0.4;
-        hot = spread * (phase.p==='SINGLE' ? 12 : 18) * (0.8 + 0.2*Math.sin(t*0.5));
+          ctx.fillStyle = 'rgba(46, 45, 41, 0.6)';
+          ctx.fillText(text, px, py + 1);
+        }
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
       }
-    }
-    subs[i] = Math.max(0, base + noise + hot);
-  }
 
-  var ms = phase.p==='EMPTY'  ? 0.2 + Math.random()*0.2
-         : phase.p==='SINGLE' ? 2.0 + Math.sin(t)*0.7
-         : 4.5 + Math.sin(t*0.7)*0.4;
-  var br = phase.p==='SINGLE' ? Math.round(15 + 3*Math.sin(t*0.04)) : 0;
+      /* ═══════════════════════════════════════════════════
+         ESP32 CENTER NODE
+       ═══════════════════════════════════════════════════ */
+      function drawCenter() {
+        var t = pulseT * 2 * Math.PI / 2;
 
-  var data = {
-    subcarriers:  subs,
-    presence:     phase.p,
-    person_count: phase.pc,
-    motion_score: Math.max(0, ms),
-    br_bpm:       br,
-    rssi:         Math.max(-85, Math.min(-30, rssi))
-  };
-  lastData = data;
-  updateHUD(data);
-}
+        var phase = (pulseT % 2.0) / 2.0;
+        var rSize = phase * 60;
+        var rOpac = (1 - phase) * 0.8;
 
-function startDemo(){
-  if(isDemo) return;
-  isDemo = true;
-  setConnState('demo');
-  demoTimer = setInterval(genDemo, 100);
-}
-function stopDemo(){
-  if(!isDemo) return;
-  isDemo = false;
-  if(demoTimer){ clearInterval(demoTimer); demoTimer=null; }
-}
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(46, 45, 41, ' + rOpac.toFixed(2) + ')';
+        ctx.lineWidth = 1.5;
+        var first = true;
+        for (var a = 0; a <= 360; a += 10) {
+          var aRad = a * Math.PI / 180 + viewAngle;
+          var rx = Math.cos(aRad) * rSize;
+          var ry = Math.sin(aRad) * rSize;
+          var px = OX + rx - ry * 0.5;
+          var py = OY + (rx + ry) * 0.4;
+          if (first) { ctx.moveTo(px, py); first = false; }
+          else { ctx.lineTo(px, py); }
+        }
+        ctx.closePath();
+        ctx.stroke();
 
-/* ═══════════════════════════════════════════════════
-   DYNAMIC IP RESOLUTION
-═══════════════════════════════════════════════════ */
-function resolveIp(){
-  var host = location.hostname;
-  if(host && host !== 'localhost' && host !== '127.0.0.1' && host !== '') return host;
-  var p = new URLSearchParams(location.search).get('ip');
-  if(p) return p.trim();
-  return null;
-}
+        ctx.fillStyle = '#2e2d29';
+        ctx.fillRect(OX - 7, OY - 4, 14, 8);
 
-var _ip = resolveIp();
-var _wsUrl = _ip ? ('ws://' + _ip + '/ws') : null;
+        ctx.beginPath();
+        ctx.strokeStyle = '#2e2d29';
+        ctx.lineWidth = 1.5;
+        ctx.moveTo(OX, OY - 4);
+        ctx.lineTo(OX, OY - 12);
+        ctx.stroke();
 
-var domConnIp = document.getElementById('conn-ip');
+        ctx.fillStyle = '#2e2d29';
+        ctx.font = '10px system-ui, -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText('ESP32-S3', OX, OY + 16);
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+      }
 
-function showIpOverlay(){
-  var ov  = document.getElementById('ip-ov');
-  var inp = document.getElementById('ip-inp');
-  var btn = document.getElementById('ip-btn');
-  ov.classList.add('show');
-  function apply(){
-    var v = inp.value.trim();
-    if(!v) return;
-    _ip    = v;
-    _wsUrl = 'ws://' + v + '/ws';
-    if(domConnIp) domConnIp.textContent = _wsUrl;
-    ov.classList.remove('show');
-    connectWS();
-  }
-  btn.addEventListener('click', apply);
-  inp.addEventListener('keydown', function(e){ if(e.key==='Enter') apply(); });
-  setTimeout(function(){ inp.focus(); }, 100);
-}
+      /* ═══════════════════════════════════════════════════
+         PRESENCE BEACON
+      ═══════════════════════════════════════════════════ */
+      function findHottest() {
+        var bestH = -1, bestR = 0, bestS = 0;
+        for (var r = 0; r < RINGS; r++) {
+          for (var s = 0; s < SEGS; s++) {
+            if (hcurrent[r][s] > bestH) { bestH = hcurrent[r][s]; bestR = r; bestS = s; }
+          }
+        }
+        return { ri: bestR, si: bestS, heat: bestH };
+      }
 
-/* ═══════════════════════════════════════════════════
-   WEBSOCKET
-═══════════════════════════════════════════════════ */
-function connectWS(){
-  if(!_wsUrl){ showIpOverlay(); startDemo(); return; }
-  if(ws){
-    ws.onopen=ws.onmessage=ws.onerror=ws.onclose=null;
-    try{ ws.close(); }catch(e){}
-    ws=null;
-  }
-  setConnState('disconnected');
-  if(fallTimer) clearTimeout(fallTimer);
-  fallTimer = setTimeout(function(){ if(!isConn) startDemo(); }, 5000);
+      function drawBeaconAt(ri, si, heat, colorHex, phase) {
+        var extH = heat * MAX_EXTR;
+        var cAng = (si + 0.5) * SEG_DEG;
+        var pt = isoPoint(ri + 0.5, cAng);
+        var bx = pt.x, by = pt.y - extH;
 
-  try{ ws = new WebSocket(_wsUrl); }
-  catch(e){ schedRecon(); return; }
+        var pa = 0.85 + 0.15 * Math.sin(pulseT * 2 * Math.PI * 1.0 + phase); // 1 Hz pulse
 
-  ws.onopen = function(){
-    isConn = true;
-    if(fallTimer){ clearTimeout(fallTimer); fallTimer=null; }
-    stopDemo();
-    setConnState('live');
-    if(domConnIp) domConnIp.textContent = _wsUrl;
-  };
-  ws.onmessage = function(e){
-    try{ var d=JSON.parse(e.data); lastData=d; updateHUD(d); }catch(ex){}
-  };
-  ws.onerror = function(){};
-  ws.onclose = function(){
-    isConn = false;
-    setConnState('disconnected');
-    schedRecon();
-    if(!isDemo) startDemo();
-  };
-}
-function schedRecon(){
-  if(reconTimer) clearTimeout(reconTimer);
-  reconTimer = setTimeout(connectWS, 3000);
-}
+        ctx.save();
+        ctx.globalAlpha = pa;
 
-/* ═══════════════════════════════════════════════════
-   INIT
-═══════════════════════════════════════════════════ */
-requestAnimationFrame(render);
-// Defer connectWS until DOMContentLoaded so the overlay div is in the DOM
-if(document.readyState === 'loading'){
-  document.addEventListener('DOMContentLoaded', connectWS);
-} else {
-  connectWS();
-}
+        var hex = colorHex.replace('#', '');
+        var r = parseInt(hex.substring(0, 2), 16);
+        var g = parseInt(hex.substring(2, 4), 16);
+        var b = parseInt(hex.substring(4, 6), 16);
 
-})();
-</script>
+        var fy = by - 40;
 
-<!-- IP Prompt Overlay -->
-<div id="ip-ov">
-  <div id="ip-box">
-    <h3>π Connect to ESP32</h3>
-    <p>Enter your ESP32's IP address.<br>Find it in the serial monitor after boot.</p>
-    <input id="ip-inp" type="text" placeholder="e.g. 10.22.76.83" spellcheck="false" autocomplete="off">
-    <button id="ip-btn">Connect</button>
-    <div class="ip-hint3d">Tip: Open http://&lt;ESP32-IP&gt;/ to skip this step.</div>
+        var coneGrad = ctx.createLinearGradient(bx, fy, bx, by);
+        coneGrad.addColorStop(0, rgba(r, g, b, 0.4));
+        coneGrad.addColorStop(1, rgba(r, g, b, 0.0));
+
+        ctx.beginPath();
+        ctx.moveTo(bx, fy);
+        ctx.lineTo(bx - 15, by);
+        ctx.lineTo(bx + 15, by);
+        ctx.closePath();
+        ctx.fillStyle = coneGrad;
+        ctx.fill();
+
+        var beamGrad = ctx.createLinearGradient(bx, fy - 80, bx, fy);
+        beamGrad.addColorStop(0, rgba(r, g, b, 0.0));
+        beamGrad.addColorStop(1, rgba(r, g, b, 0.5));
+        ctx.fillStyle = beamGrad;
+        ctx.fillRect(bx - 1, fy - 80, 2, 80);
+
+        var hy = fy - 20;
+
+        ctx.strokeStyle = colorHex;
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        ctx.beginPath();
+        ctx.arc(bx, hy - 8, 8, 0, Math.PI * 2);
+        ctx.moveTo(bx, hy);
+        ctx.lineTo(bx, fy);
+        ctx.moveTo(bx, hy + 4);
+        ctx.lineTo(bx - 12, hy + 16);
+        ctx.moveTo(bx, hy + 4);
+        ctx.lineTo(bx + 12, hy + 16);
+        ctx.moveTo(bx, fy);
+        ctx.lineTo(bx - 8, fy + 15);
+        ctx.moveTo(bx, fy);
+        ctx.lineTo(bx + 8, fy + 15);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      /* ═══════════════════════════════════════════════════
+         RENDER LOOP — sort-by-screenY draw order
+      ═══════════════════════════════════════════════════ */
+      function render() {
+        requestAnimationFrame(render);
+        pulseT += 0.016;
+
+        // Lerp heat
+        for (var r = 0; r < RINGS; r++) {
+          for (var s = 0; s < SEGS; s++) {
+            hcurrent[r][s] += (htarget[r][s] - hcurrent[r][s]) * 0.05;
+          }
+        }
+
+        ctx.fillStyle = '#f4f3ef';
+        ctx.fillRect(0, 0, W, H);
+
+        drawGridGuides();
+
+        // ── SORTED DRAW ORDER ──────────────────────────────
+        // Collect all 96 cells with their representative screenY
+        var cells = [];
+        for (var ri = 0; ri < RINGS; ri++) {
+          for (var si = 0; si < SEGS; si++) {
+            // Representative point: outer arc midpoint (determines depth)
+            var midAngle = (si + 0.5) * SEG_DEG;
+            var outerPt = isoPoint(ri + 1, midAngle);
+            var innerPt = isoPoint(ri, midAngle);
+            var avgY = (outerPt.y + innerPt.y) * 0.5;
+            cells.push({ ri: ri, si: si, sortY: avgY });
+          }
+        }
+        // Sort ascending screenY = back-to-front
+        cells.sort(function (a, b) { return a.sortY - b.sortY; });
+
+        for (var ci = 0; ci < cells.length; ci++) {
+          var c = cells[ci];
+          drawCell(c.ri, c.si, hcurrent[c.ri][c.si]);
+        }
+        // ──────────────────────────────────────────────────
+
+        drawCenter();
+
+        var pres = lastData.presence;
+        if (pres === 'SINGLE' || pres === 'MULTI') {
+          var best1 = findHottest();
+          if (best1.heat >= 0.3) {
+            drawBeaconAt(best1.ri, best1.si, best1.heat, '#2e2d29', 0);
+          }
+          if (pres === 'MULTI') {
+            var best2h = -1, best2r = 0, best2s = 0;
+            for (var r2 = 0; r2 < RINGS; r2++) {
+              for (var s2 = 0; s2 < SEGS; s2++) {
+                if (r2 === best1.ri && s2 === best1.si) continue;
+                if (hcurrent[r2][s2] > best2h) { best2h = hcurrent[r2][s2]; best2r = r2; best2s = s2; }
+              }
+            }
+            if (best2h >= 0.3) {
+              drawBeaconAt(best2r, best2s, best2h, '#a17a3a', Math.PI);
+            }
+          }
+        }
+
+        drawCompass();
+        drawRingLabels();
+      }
+
+      /* ═══════════════════════════════════════════════════
+         CSI → HEAT TARGETS  (16 segments × 4 subcarriers)
+      ═══════════════════════════════════════════════════ */
+      function gaussian(x, mean, sigma) {
+        return Math.exp(-0.5 * Math.pow((x - mean) / sigma, 2));
+      }
+
+      function buildHeatTarget(data) {
+        var subs = data.subcarriers || [];
+        var rssi = (data.rssi !== undefined) ? data.rssi : -60;
+        var pres = data.presence || 'EMPTY';
+
+        // 16 segments × 4 subcarriers = 64 total
+        var segVals = new Float32Array(SEGS);
+        for (var s = 0; s < SEGS; s++) {
+          var start = s * 4, sum = 0;
+          for (var i = start; i < start + 4; i++) sum += (subs[i] || 0);
+          segVals[s] = sum / 4;
+        }
+
+        // Normalize segment values
+        var sMin = Infinity, sMax = -Infinity;
+        for (var s2 = 0; s2 < SEGS; s2++) {
+          if (segVals[s2] < sMin) sMin = segVals[s2];
+          if (segVals[s2] > sMax) sMax = segVals[s2];
+        }
+        var sRange = sMax - sMin || 1;
+        for (var s3 = 0; s3 < SEGS; s3++) segVals[s3] = (segVals[s3] - sMin) / sRange;
+
+        // Angular spread: apply 0.6x heat to adjacent segments
+        var segSpread = new Float32Array(SEGS);
+        for (var s4 = 0; s4 < SEGS; s4++) {
+          var left = (s4 - 1 + SEGS) % SEGS;
+          var right = (s4 + 1) % SEGS;
+          segSpread[s4] = Math.min(1,
+            segVals[s4] +
+            segVals[left] * 0.6 +
+            segVals[right] * 0.6
+          );
+        }
+
+        // Peak ring from RSSI
+        var peakRing;
+        if (rssi > -35) peakRing = 1.5;
+        else if (rssi > -45) peakRing = 2.5;
+        else if (rssi > -55) peakRing = 3.5;
+        else if (rssi > -65) peakRing = 4.5;
+        else if (rssi > -75) peakRing = 5.5;
+        else peakRing = 7.0;
+
+        var presMulti = (pres === 'EMPTY') ? 0.15 : (pres === 'SINGLE') ? 1.0 : 1.2;
+
+        for (var ri = 0; ri < RINGS; ri++) {
+          var ringNum = ri + 1;
+          var gw = gaussian(ringNum, peakRing, 2.5);  // sigma=2.5 for wide spread
+          for (var si = 0; si < SEGS; si++) {
+            htarget[ri][si] = Math.min(1, segSpread[si] * gw * presMulti);
+          }
+        }
+      }
+
+      /* ═══════════════════════════════════════════════════
+         HUD
+      ═══════════════════════════════════════════════════ */
+      var domPresVal = document.getElementById('pres-val');
+      var domPresPers = document.getElementById('pres-pers');
+      var domVitBr = document.getElementById('vit-br');
+      var domVitConf = document.getElementById('vit-conf');
+      var domConfFill = document.getElementById('conf-bar-fill');
+      var domBbRssi = document.getElementById('bb-rssi');
+      var domBbMot = document.getElementById('bb-mot');
+      var domBbBr = document.getElementById('bb-br');
+      var domBbSig = document.getElementById('bb-sig');
+      var domConnDot = document.getElementById('conn-dot');
+      var domConnLbl = document.getElementById('conn-lbl');
+      var domStateDot = document.getElementById('state-dot');
+      var domStateText = document.getElementById('state-text');
+
+      function updateHUD(data) {
+        var p = data.presence || 'EMPTY';
+        var pc = (data.person_count !== undefined) ? data.person_count : 0;
+        var bpm = data.br_bpm || 0;
+        var rssi = (data.rssi !== undefined) ? data.rssi : -100;
+        var ms = data.motion_score || 0;
+
+        if (p === 'EMPTY') {
+          domPresVal.textContent = 'VACANT';
+          domPresVal.style.color = 'rgba(46, 45, 41, 0.55)';
+        } else if (p === 'SINGLE') {
+          domPresVal.textContent = 'OCCUPIED';
+          domPresVal.style.color = '#2e2d29';
+        } else {
+          domPresVal.textContent = 'MULTIPLE';
+          domPresVal.style.color = '#946f32';
+        }
+        domPresPers.innerHTML = '<span class="num">' + pc + '</span> PERSON' + (pc !== 1 ? 'S' : '') + ' DETECTED';
+
+        if (bpm > 0 && p === 'SINGLE') {
+          domVitBr.innerHTML = '<span class="num">' + bpm + '</span> BPM';
+          domVitBr.style.color = '#2e2d29';
+        } else {
+          domVitBr.innerHTML = '<span class="num">--</span> BPM';
+          domVitBr.style.color = 'rgba(46, 45, 41, 0.55)';
+        }
+        var conf = (p !== 'EMPTY') ? Math.min(85 + ms * 8, 99) : 0;
+        domVitConf.innerHTML = '<span class="num">' + Math.round(conf) + '</span>%';
+        domConfFill.style.width = conf + '%';
+        if (p === 'EMPTY') {
+          domVitConf.style.color = 'rgba(46, 45, 41, 0.55)';
+        } else {
+          domVitConf.style.color = '#2e2d29';
+        }
+
+        var rc;
+        if (rssi > -45) {
+          rc = '#2e2d29'; domBbSig.textContent = 'STRONG'; domBbSig.style.color = '#2e2d29';
+        } else if (rssi > -65) {
+          rc = '#946f32'; domBbSig.textContent = 'MED'; domBbSig.style.color = '#946f32';
+        } else {
+          rc = 'rgba(46, 45, 41, 0.55)'; domBbSig.textContent = 'WEAK'; domBbSig.style.color = 'rgba(46, 45, 41, 0.55)';
+        }
+        domBbRssi.innerHTML = '<span class="num">' + rssi + '</span> dBm';
+        domBbRssi.style.color = rc;
+        domBbMot.innerHTML = '<span class="num">' + ms.toFixed(2) + '</span>';
+        domBbMot.style.color = ms < 2 ? '#2e2d29' : ms < 5 ? '#946f32' : 'rgba(46, 45, 41, 0.55)';
+
+        motionHist.shift();
+        motionHist.push(ms);
+        var motHtml = '';
+        for (var i = 0; i < 5; i++) {
+          var v = motionHist[i];
+          var h = Math.min(20, Math.max(2, v * 4));
+          var c = v < 2 ? '#2e2d29' : v < 5 ? '#946f32' : 'rgba(46, 45, 41, 0.4)';
+          motHtml += '<div style="width:4px;height:' + h + 'px;background:' + c + '; border-radius:0px"></div>';
+        }
+        document.getElementById('mot-hist').innerHTML = motHtml;
+        domBbBr.innerHTML = bpm > 0 ? '<span class="num">' + bpm + '</span> BPM' : '<span class="num">--</span>';
+
+        buildHeatTarget(data);
+      }
+
+      function setConnState(st) {
+        domConnDot.className = '';
+        domStateDot.className = '';
+        domStateText.className = '';
+        if (st === 'live') {
+          domConnDot.className = 'live';
+          domConnLbl.textContent = 'LIVE';
+          domConnLbl.style.color = '#2e2d29';
+          domStateDot.className = 'live';
+          domStateText.textContent = 'LIVE';
+          domStateText.className = 'live';
+        } else if (st === 'demo') {
+          domConnDot.className = 'demo';
+          domConnLbl.textContent = 'DEMO';
+          domConnLbl.style.color = '#946f32';
+          domStateDot.className = 'demo';
+          domStateText.textContent = 'DEMO';
+          domStateText.className = 'demo';
+        } else {
+          domConnDot.className = 'dead';
+          domConnLbl.textContent = 'DISCONNECTED';
+          domConnLbl.style.color = 'rgba(46, 45, 41, 0.55)';
+          domStateDot.className = 'dead';
+          domStateText.textContent = 'OFFLINE';
+          domStateText.className = 'dead';
+        }
+      }
+
+      /* ═══════════════════════════════════════════════════
+         DEMO MODE (updated for 16 segments, 4 subs each)
+      ═══════════════════════════════════════════════════ */
+      function genDemo() {
+        demoTick++;
+        demoPhaseTimer++;
+        var ph = DPHASES[demoPhase];
+        if (demoPhaseTimer >= ph.dur) {
+          demoPhase = (demoPhase + 1) % 3;
+          demoPhaseTimer = 0;
+        }
+        var phase = DPHASES[demoPhase];
+        var t = demoTick * 0.1;
+
+        if (demoTick % 20 === 0) {
+          demoHotSeg = (demoHotSeg + demoHotDir + SEGS) % SEGS;
+          if (demoHotSeg === 0 || demoHotSeg === SEGS - 1) demoHotDir *= -1;
+        }
+
+        var rCyc = (demoTick % 200) / 200;
+        var rssi = Math.round(-35 + (-60 + 35) * 0.5 * (1 - Math.cos(rCyc * 2 * Math.PI)));
+
+        // 64 subcarriers: 16 segments × 4 each
+        var subs = new Array(64);
+        for (var i = 0; i < 64; i++) {
+          var base = 10 + 2 * Math.sin(t * 0.3 + i * 0.1);
+          var noise = (Math.random() - 0.5) * 1.5;
+          var seg = Math.floor(i / 4);   // which of the 16 segments
+          var hot = 0;
+          if (phase.p !== 'EMPTY') {
+            var dist = Math.min(
+              Math.abs(seg - demoHotSeg),
+              SEGS - Math.abs(seg - demoHotSeg)
+            );
+            if (dist <= 2) {
+              var spread = 1 - dist * 0.4;
+              hot = spread * (phase.p === 'SINGLE' ? 12 : 18) * (0.8 + 0.2 * Math.sin(t * 0.5));
+            }
+          }
+          subs[i] = Math.max(0, base + noise + hot);
+        }
+
+        var ms = phase.p === 'EMPTY' ? 0.2 + Math.random() * 0.2
+          : phase.p === 'SINGLE' ? 2.0 + Math.sin(t) * 0.7
+            : 4.5 + Math.sin(t * 0.7) * 0.4;
+        var br = phase.p === 'SINGLE' ? Math.round(15 + 3 * Math.sin(t * 0.04)) : 0;
+
+        var data = {
+          subcarriers: subs,
+          presence: phase.p,
+          person_count: phase.pc,
+          motion_score: Math.max(0, ms),
+          br_bpm: br,
+          rssi: Math.max(-85, Math.min(-30, rssi))
+        };
+        lastData = data;
+        updateHUD(data);
+      }
+
+      function startDemo() {
+        if (isDemo) return;
+        isDemo = true;
+        setConnState('demo');
+        demoTimer = setInterval(genDemo, 100);
+      }
+      function stopDemo() {
+        if (!isDemo) return;
+        isDemo = false;
+        if (demoTimer) { clearInterval(demoTimer); demoTimer = null; }
+      }
+
+      /* ═══════════════════════════════════════════════════
+         DYNAMIC IP RESOLUTION
+      ═══════════════════════════════════════════════════ */
+      function resolveIp() {
+        var host = location.hostname;
+        if (host && host !== 'localhost' && host !== '127.0.0.1' && host !== '') return host;
+        var p = new URLSearchParams(location.search).get('ip');
+        if (p) return p.trim();
+        return null;
+      }
+
+      var _ip = resolveIp();
+      var _wsUrl = _ip ? ('ws://' + _ip + '/ws') : null;
+
+      var domConnIp = document.getElementById('conn-ip');
+
+      function showIpOverlay() {
+        var ov = document.getElementById('ip-ov');
+        var inp = document.getElementById('ip-inp');
+        var btn = document.getElementById('ip-btn');
+        ov.classList.add('show');
+        function apply() {
+          var v = inp.value.trim();
+          if (!v) return;
+          _ip = v;
+          _wsUrl = 'ws://' + v + '/ws';
+          if (domConnIp) domConnIp.textContent = _wsUrl;
+          ov.classList.remove('show');
+          connectWS();
+        }
+        btn.addEventListener('click', apply);
+        inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') apply(); });
+        setTimeout(function () { inp.focus(); }, 100);
+      }
+
+      /* ═══════════════════════════════════════════════════
+         WEBSOCKET
+      ═══════════════════════════════════════════════════ */
+      function connectWS() {
+        if (!_wsUrl) { showIpOverlay(); startDemo(); return; }
+        if (ws) {
+          ws.onopen = ws.onmessage = ws.onerror = ws.onclose = null;
+          try { ws.close(); } catch (e) { }
+          ws = null;
+        }
+        setConnState('disconnected');
+        if (fallTimer) clearTimeout(fallTimer);
+        fallTimer = setTimeout(function () { if (!isConn) startDemo(); }, 5000);
+
+        try { ws = new WebSocket(_wsUrl); }
+        catch (e) { schedRecon(); return; }
+
+        ws.onopen = function () {
+          isConn = true;
+          if (fallTimer) { clearTimeout(fallTimer); fallTimer = null; }
+          stopDemo();
+          setConnState('live');
+          if (domConnIp) domConnIp.textContent = _wsUrl;
+        };
+        ws.onmessage = function (e) {
+          try { var d = JSON.parse(e.data); lastData = d; updateHUD(d); } catch (ex) { }
+        };
+        ws.onerror = function () { };
+        ws.onclose = function () {
+          isConn = false;
+          setConnState('disconnected');
+          schedRecon();
+          if (!isDemo) startDemo();
+        };
+      }
+      function schedRecon() {
+        if (reconTimer) clearTimeout(reconTimer);
+        reconTimer = setTimeout(connectWS, 3000);
+      }
+
+      /* ═══════════════════════════════════════════════════
+         INIT
+      ═══════════════════════════════════════════════════ */
+      requestAnimationFrame(render);
+      // Defer connectWS until DOMContentLoaded so the overlay div is in the DOM
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', connectWS);
+      } else {
+        connectWS();
+      }
+
+    })();
+  </script>
+
+  <!-- IP Prompt Overlay -->
+  <div id="ip-ov">
+    <div id="ip-box">
+      <h3>Connect to ESP32</h3>
+      <p>Enter your ESP32's IP address.<br>Find it in the serial monitor after boot.</p>
+      <input id="ip-inp" type="text" placeholder="e.g. 10.22.76.83" spellcheck="false" autocomplete="off">
+      <button id="ip-btn">Connect</button>
+      <div class="ip-hint3d">Tip: Open http://&lt;ESP32-IP&gt;/ to skip this step.</div>
+    </div>
   </div>
-</div>
 
 </body>
+
 </html>
