@@ -1,22 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SPARS Vision — Multi-Node Deployment Scenario Dashboard</title>
-  
+
   <!-- Font -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Outfit:wght@300;400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Outfit:wght@300;400;600;700&family=Share+Tech+Mono&display=swap"
+    rel="stylesheet">
 
   <style>
     :root {
-      --accent: #e8e4d9;
-      --accent-alpha: rgba(232, 228, 217, 0.1);
-      --bg: #000000;
-      --card-bg: rgba(6, 6, 5, 0.92);
-      --border-alpha: rgba(232, 228, 217, 0.1);
+      --accent: #2e2d29;
+      --accent-alpha: rgba(46, 45, 41, 0.08);
+      --bg: #f5f4f0;
+      --card-bg: rgba(255, 255, 255, 0.95);
+      --border-alpha: rgba(46, 45, 41, 0.12);
       --font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
       --font-mono: 'Courier New', monospace;
     }
@@ -26,7 +29,8 @@
       user-select: none;
     }
 
-    body, html {
+    body,
+    html {
       margin: 0;
       padding: 0;
       width: 100%;
@@ -34,7 +38,7 @@
       overflow: hidden;
       background-color: var(--bg);
       font-family: var(--font-family);
-      color: #e8e4d9;
+      color: var(--accent);
     }
 
     /* Error Message Overlay */
@@ -42,7 +46,7 @@
       display: none;
       position: fixed;
       inset: 0;
-      background: #000;
+      background: #f5f4f0;
       z-index: 9999;
       color: #c8503a;
       padding: 3rem;
@@ -57,6 +61,7 @@
       z-index: 1;
       cursor: grab;
     }
+
     #canvas-container:active {
       cursor: grabbing;
     }
@@ -68,9 +73,9 @@
       left: 0;
       width: 100%;
       height: 48px;
-      background: rgba(0, 0, 0, 0.95);
+      background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(10px);
-      border-bottom: 1px solid rgba(232, 228, 217, 0.08);
+      border-bottom: 1px solid rgba(46, 45, 41, 0.08);
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -93,14 +98,14 @@
     .h-symbol {
       font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
       font-size: 14px;
-      color: #e8e4d9;
+      color: var(--accent);
     }
 
     .header-logo {
       font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
       font-weight: 700;
       font-size: 16px;
-      color: #e8e4d9;
+      color: var(--accent);
       letter-spacing: 0.1em;
       line-height: 1.1;
     }
@@ -109,7 +114,7 @@
       font-family: system-ui, -apple-system, sans-serif;
       font-size: 9px;
       letter-spacing: 0.2em;
-      color: rgba(232, 228, 217, 0.35);
+      color: rgba(46, 45, 41, 0.5);
       text-transform: uppercase;
       font-weight: 300;
       border-left: none;
@@ -127,7 +132,7 @@
       font-family: system-ui, -apple-system, sans-serif;
       font-size: 11px;
       letter-spacing: 0.15em;
-      color: rgba(232, 228, 217, 0.3);
+      color: rgba(46, 45, 41, 0.4);
       font-weight: 600;
       text-transform: uppercase;
       font-style: italic;
@@ -138,18 +143,18 @@
       font-size: 9px;
       letter-spacing: 0.1em;
       text-transform: uppercase;
-      color: rgba(232, 228, 217, 0.4);
+      color: rgba(46, 45, 41, 0.6);
       background: transparent;
       padding: 2px 8px;
-      border: 1px solid rgba(232, 228, 217, 0.2);
+      border: 1px solid rgba(46, 45, 41, 0.2);
       border-radius: 999px;
     }
 
     /* Styled Dropdown */
     .scenario-select {
       background: transparent;
-      border: 1px solid rgba(232, 228, 217, 0.25);
-      color: #e8e4d9;
+      border: 1px solid rgba(46, 45, 41, 0.25);
+      color: var(--accent);
       padding: 8px 20px;
       font-size: 13px;
       font-family: system-ui, -apple-system, sans-serif;
@@ -161,13 +166,15 @@
       box-shadow: none;
       border-radius: 0;
     }
+
     .scenario-select:hover {
       box-shadow: none;
-      border-color: rgba(232, 228, 217, 0.5);
+      border-color: rgba(46, 45, 41, 0.5);
     }
+
     .scenario-select option {
-      background: #0a0a09;
-      color: #e8e4d9;
+      background: #ffffff;
+      color: var(--accent);
       padding: 8px;
     }
 
@@ -216,8 +223,8 @@
       font-weight: 300;
       letter-spacing: 0.25em;
       text-transform: uppercase;
-      color: rgba(232, 228, 217, 0.5);
-      border-bottom: 1px solid rgba(232, 228, 217, 0.08);
+      color: rgba(46, 45, 41, 0.6);
+      border-bottom: 1px solid rgba(46, 45, 41, 0.08);
       padding-bottom: 0.6rem;
     }
 
@@ -231,7 +238,7 @@
     .metric-item {
       display: flex;
       flex-direction: column;
-      border-bottom: 1px solid rgba(232, 228, 217, 0.03);
+      border-bottom: 1px solid rgba(46, 45, 41, 0.04);
       padding-bottom: 0.4rem;
     }
 
@@ -248,13 +255,13 @@
       font-weight: 300;
       letter-spacing: 0.15em;
       text-transform: uppercase;
-      color: rgba(232, 228, 217, 0.4);
+      color: rgba(46, 45, 41, 0.5);
     }
 
     .metric-value {
       font-family: system-ui, -apple-system, sans-serif;
       font-size: 14px;
-      color: #e8e4d9;
+      color: var(--accent);
       font-weight: 600;
     }
 
@@ -265,19 +272,19 @@
 
     .vsep-line {
       height: 1px;
-      background: rgba(232, 228, 217, 0.08);
+      background: rgba(46, 45, 41, 0.08);
       margin: 2px 0;
     }
 
     .metric-value.highlight {
-      color: #e8e4d9;
+      color: var(--accent);
     }
 
     /* Range Indicators */
     .range-bar {
       width: 100%;
       height: 4px;
-      background: rgba(232, 228, 217, 0.08);
+      background: rgba(46, 45, 41, 0.08);
       margin-top: 0.3rem;
       position: relative;
     }
@@ -287,7 +294,7 @@
       left: 0;
       top: 0;
       height: 100%;
-      background: rgba(232, 228, 217, 0.3);
+      background: rgba(46, 45, 41, 0.25);
       width: 70%;
     }
 
@@ -300,8 +307,8 @@
 
     .simulate-btn {
       background: transparent;
-      border: 1px solid rgba(232, 228, 217, 0.3);
-      color: #e8e4d9;
+      border: 1px solid rgba(46, 45, 41, 0.3);
+      color: var(--accent);
       font-family: system-ui, -apple-system, sans-serif;
       padding: 8px 12px;
       font-size: 12px;
@@ -315,7 +322,7 @@
     }
 
     .simulate-btn:hover {
-      background: rgba(232, 228, 217, 0.05);
+      background: rgba(46, 45, 41, 0.05);
       box-shadow: none;
     }
 
@@ -323,9 +330,9 @@
     .log-container {
       font-family: var(--font-mono);
       font-size: 11px;
-      background: rgba(0, 0, 0, 0.3);
+      background: rgba(255, 255, 255, 0.5);
       padding: 0.8rem;
-      border: 1px solid rgba(232, 228, 217, 0.05);
+      border: 1px solid rgba(46, 45, 41, 0.05);
       height: 120px;
       overflow-y: auto;
       display: flex;
@@ -335,10 +342,11 @@
     }
 
     .log-entry {
-      color: rgba(232, 228, 217, 0.5);
+      color: rgba(46, 45, 41, 0.6);
       display: flex;
       gap: 0.5rem;
     }
+
     .log-entry.alert {
       color: #c8503a;
     }
@@ -350,15 +358,15 @@
       bottom: 60px;
       max-width: 420px;
       background: var(--card-bg);
-      border-left: 2px solid #e8e4d9;
+      border-left: 2px solid var(--accent);
       padding: 1rem 1.2rem;
       pointer-events: auto;
       z-index: 5;
       font-family: system-ui, -apple-system, sans-serif;
       font-size: 11px;
       line-height: 1.6;
-      color: rgba(232, 228, 217, 0.45);
-      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+      color: rgba(46, 45, 41, 0.65);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
       border-radius: 0;
     }
 
@@ -383,14 +391,14 @@
     }
 
     .alert-banner.normal {
-      background: rgba(8, 8, 6, 0.88);
-      border: 1px solid rgba(232, 228, 217, 0.15);
-      color: #e8e4d9;
-      box-shadow: none;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(46, 45, 41, 0.15);
+      color: var(--accent);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
     }
 
     .alert-banner.alert {
-      background: rgba(200, 80, 58, 0.15);
+      background: rgba(200, 80, 58, 0.08);
       border: 1px solid #c8503a;
       color: #c8503a;
       box-shadow: none;
@@ -398,8 +406,13 @@
     }
 
     @keyframes alert-pulse {
-      0% { opacity: 0.8; }
-      100% { opacity: 1; }
+      0% {
+        opacity: 0.8;
+      }
+
+      100% {
+        opacity: 1;
+      }
     }
 
     /* Footer */
@@ -409,8 +422,8 @@
       left: 0;
       width: 100%;
       height: 36px;
-      background: rgba(0, 0, 0, 0.9);
-      border-top: 1px solid rgba(232, 228, 217, 0.08);
+      background: rgba(255, 255, 255, 0.95);
+      border-top: 1px solid rgba(46, 45, 41, 0.08);
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -418,7 +431,7 @@
       z-index: 10;
       font-size: 10px;
       letter-spacing: 0.15em;
-      color: rgba(232, 228, 217, 0.3);
+      color: rgba(46, 45, 41, 0.4);
     }
 
     .footer-left {
@@ -442,18 +455,35 @@
       width: 6px;
       height: 6px;
       border-radius: 50%;
-      background: #e8e4d9;
+      background: var(--accent);
       box-shadow: none;
       animation: dot-pulse 2.5s infinite ease-in-out;
     }
 
-    .node-dot:nth-child(2) { animation-delay: 0.3s; }
-    .node-dot:nth-child(3) { animation-delay: 0.6s; }
-    .node-dot:nth-child(4) { animation-delay: 0.9s; }
+    .node-dot:nth-child(2) {
+      animation-delay: 0.3s;
+    }
+
+    .node-dot:nth-child(3) {
+      animation-delay: 0.6s;
+    }
+
+    .node-dot:nth-child(4) {
+      animation-delay: 0.9s;
+    }
 
     @keyframes dot-pulse {
-      0%, 100% { opacity: 0.4; transform: scale(0.8); }
-      50% { opacity: 1; transform: scale(1.2); }
+
+      0%,
+      100% {
+        opacity: 0.4;
+        transform: scale(0.8);
+      }
+
+      50% {
+        opacity: 1;
+        transform: scale(1.2);
+      }
     }
 
     .footer-right {
@@ -475,7 +505,7 @@
       top: 0;
       font-family: system-ui, -apple-system, sans-serif;
       font-size: 10px;
-      color: rgba(232, 228, 217, 0.5);
+      color: rgba(46, 45, 41, 0.6);
       padding: 0;
       white-space: nowrap;
       pointer-events: none;
@@ -485,6 +515,7 @@
     }
   </style>
 </head>
+
 <body>
 
   <!-- Three.js CDN Fail message -->
@@ -503,13 +534,13 @@
       </div>
       <span class="header-tag">Wifi Presence Monitoring</span>
     </div>
-    
+
     <select class="scenario-select" id="scenario-select">
       <option value="care">Elder Care — Smart Home</option>
       <option value="security">Security — Office & Building</option>
       <option value="clinical">Clinical — Hospital Room</option>
     </select>
-    
+
     <div class="header-right">
       <span class="vision-title">Vision Mode</span>
       <span class="badge">v2 concept</span>
@@ -529,7 +560,7 @@
 
   <!-- Dynamic HUD View -->
   <div id="dashboard-view">
-    
+
     <!-- Left HUD -->
     <div class="hud-card hud-left" id="panel-left">
       <!-- dynamic dynamic content -->
@@ -590,19 +621,19 @@
     // Preset theme configurations
     const themes = {
       care: {
-        accent: '#e8e4d9',
-        accentAlpha: 'rgba(232, 228, 217, 0.1)',
-        borderAlpha: 'rgba(232, 228, 217, 0.1)'
+        accent: '#2e2d29',
+        accentAlpha: 'rgba(46, 45, 41, 0.08)',
+        borderAlpha: 'rgba(46, 45, 41, 0.12)'
       },
       security: {
-        accent: '#e8e4d9',
-        accentAlpha: 'rgba(232, 228, 217, 0.1)',
-        borderAlpha: 'rgba(232, 228, 217, 0.1)'
+        accent: '#2e2d29',
+        accentAlpha: 'rgba(46, 45, 41, 0.08)',
+        borderAlpha: 'rgba(46, 45, 41, 0.12)'
       },
       clinical: {
-        accent: '#e8e4d9',
-        accentAlpha: 'rgba(232, 228, 217, 0.1)',
-        borderAlpha: 'rgba(232, 228, 217, 0.1)'
+        accent: '#2e2d29',
+        accentAlpha: 'rgba(46, 45, 41, 0.08)',
+        borderAlpha: 'rgba(46, 45, 41, 0.12)'
       }
     };
 
@@ -632,7 +663,7 @@
     // ─── THREE.JS SCENE SETUP ─────────────────────────────────────────
     const container = document.getElementById('canvas-container');
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000000);
+    scene.background = new THREE.Color(0xf5f4f0);
 
     const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -691,10 +722,10 @@
     });
 
     // Lights
-    const ambientLight = new THREE.AmbientLight(0x222222);
+    const ambientLight = new THREE.AmbientLight(0x888888);
     scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
     dirLight.position.set(5, 10, 5);
     scene.add(dirLight);
 
@@ -702,16 +733,16 @@
     // Floor
     const floorGeo = new THREE.PlaneGeometry(10, 10);
     const floorMat = new THREE.MeshStandardMaterial({
-      color: 0x000000,
-      roughness: 0.4,
-      metalness: 0.1
+      color: 0xffffff,
+      roughness: 0.5,
+      metalness: 0.05
     });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
     scene.add(floor);
 
     // Grid
-    const gridColor = new THREE.Color(0xe8e4d9);
+    const gridColor = new THREE.Color(0x2e2d29);
     const grid = new THREE.GridHelper(10, 20, gridColor, gridColor);
     grid.position.y = 0.01;
     grid.material.opacity = 0.06;
@@ -737,22 +768,22 @@
       // Base enclosure
       const boxGeo = new THREE.BoxGeometry(0.2, 0.15, 0.05);
       const boxMat = new THREE.MeshStandardMaterial({
-        color: 0xe8e4d9,
-        emissive: 0xe8e4d9,
-        emissiveIntensity: 0.3
+        color: 0x2e2d29,
+        emissive: 0x2e2d29,
+        emissiveIntensity: 0.1
       });
       const box = new THREE.Mesh(boxGeo, boxMat);
       node.add(box);
 
       // Antenna
       const antGeo = new THREE.CylinderGeometry(0.008, 0.008, 0.3);
-      const antMat = new THREE.MeshBasicMaterial({ color: 0xe8e4d9 });
+      const antMat = new THREE.MeshBasicMaterial({ color: 0x2e2d29 });
       const ant = new THREE.Mesh(antGeo, antMat);
       ant.position.set(0, 0.15 + 0.075, 0);
       node.add(ant);
 
       // Point Light
-      const pLight = new THREE.PointLight(0xe8e4d9, 0.3, 3);
+      const pLight = new THREE.PointLight(0xffffff, 0.3, 3);
       pLight.position.set(0, 0.1, 0);
       node.add(pLight);
       pointLights.push(pLight);
@@ -760,7 +791,7 @@
       // Pulsing torus ring
       const ringGeo = new THREE.TorusGeometry(1, 0.01, 8, 32);
       const ringMat = new THREE.MeshBasicMaterial({
-        color: 0xe8e4d9,
+        color: 0x2e2d29,
         transparent: true,
         opacity: 0.2
       });
@@ -786,11 +817,11 @@
     linePairs.forEach(([idxA, idxB]) => {
       const posA = nodePositions[idxA].clone();
       const posB = nodePositions[idxB].clone();
-      
+
       const points = [posA, posB];
       const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
       const lineMat = new THREE.LineBasicMaterial({
-        color: 0xe8e4d9,
+        color: 0x2e2d29,
         transparent: true,
         opacity: 0.05
       });
@@ -810,16 +841,16 @@
 
     function buildElderCare() {
       scenarioGroup.clear();
-      
+
       // Bed
       const bedFrameGeo = new THREE.BoxGeometry(1.5, 0.4, 0.8);
-      const bedMat = new THREE.MeshStandardMaterial({ color: 0x1a1a18 });
+      const bedMat = new THREE.MeshStandardMaterial({ color: 0xcccccc });
       bedMesh = new THREE.Mesh(bedFrameGeo, bedMat);
       bedMesh.position.set(0, 0.2, 0);
       scenarioGroup.add(bedMesh);
 
       const pillowGeo = new THREE.BoxGeometry(0.3, 0.12, 0.6);
-      const pillowMat = new THREE.MeshStandardMaterial({ color: 0xe8e4d9 });
+      const pillowMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
       const pillow = new THREE.Mesh(pillowGeo, pillowMat);
       pillow.position.set(-0.55, 0.45, 0);
       scenarioGroup.add(pillow);
@@ -831,7 +862,7 @@
       // Body (capsule/cylinder)
       const bodyGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.9, 16);
       bodyGeo.rotateZ(Math.PI / 2);
-      const bodyMat = new THREE.MeshStandardMaterial({ color: 0x2a2a26 });
+      const bodyMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
       const body = new THREE.Mesh(bodyGeo, bodyMat);
       body.name = "body";
       personGroup.add(body);
@@ -864,14 +895,14 @@
         // Simple curved line connecting Node to bed center
         const curve = new THREE.QuadraticBezierCurve3(
           pos,
-          new THREE.Vector3((pos.x + 0)/2, 2.5, (pos.z + 0)/2),
+          new THREE.Vector3((pos.x + 0) / 2, 2.5, (pos.z + 0) / 2),
           new THREE.Vector3(0, 0.4, 0)
         );
-        
+
         const points = curve.getPoints(30);
         const arcGeo = new THREE.BufferGeometry().setFromPoints(points);
         const arcMat = new THREE.LineBasicMaterial({
-          color: 0xe8e4d9,
+          color: 0x2e2d29,
           transparent: true,
           opacity: 0.05
         });
@@ -880,9 +911,9 @@
 
         // Particle floating along arc
         const pGeo = new THREE.SphereGeometry(0.04, 8, 8);
-        const pMat = new THREE.MeshBasicMaterial({ color: 0xe8e4d9 });
+        const pMat = new THREE.MeshBasicMaterial({ color: 0x2e2d29 });
         const p = new THREE.Mesh(pGeo, pMat);
-        
+
         particlesGroup.add(p);
         p.userData = {
           curve: curve,
@@ -908,7 +939,7 @@
 
       deskPositions.forEach((pos) => {
         const deskGeo = new THREE.BoxGeometry(1.0, 0.6, 0.6);
-        const deskMat = new THREE.MeshStandardMaterial({ color: 0x141412 });
+        const deskMat = new THREE.MeshStandardMaterial({ color: 0xcccccc });
         const desk = new THREE.Mesh(deskGeo, deskMat);
         desk.position.copy(pos);
         scenarioGroup.add(desk);
@@ -916,7 +947,7 @@
 
       // Entry point
       const doorGeo = new THREE.BoxGeometry(0.1, 1.2, 0.8);
-      const doorMat = new THREE.MeshStandardMaterial({ color: 0x222220 });
+      const doorMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
       const door = new THREE.Mesh(doorGeo, doorMat);
       door.position.set(-4.95, 0.6, 0);
       scenarioGroup.add(door);
@@ -928,7 +959,7 @@
       // Secure/restricted zone visualizer boundary on floor
       const restrictGeo = new THREE.BoxGeometry(4, 0.01, 8);
       const restrictMat = new THREE.MeshBasicMaterial({
-        color: simulationActive ? 0xc8503a : 0xe8e4d9,
+        color: simulationActive ? 0xc8503a : 0x2e2d29,
         transparent: true,
         opacity: 0.05
       });
@@ -943,7 +974,7 @@
       ];
       const zoneLineGeo = new THREE.BufferGeometry().setFromPoints(zoneLinePoints);
       const zoneLineMat = new THREE.LineBasicMaterial({
-        color: simulationActive ? 0xc8503a : 0xe8e4d9,
+        color: simulationActive ? 0xc8503a : 0x2e2d29,
         linewidth: 2
       });
       const zoneLine = new THREE.Line(zoneLineGeo, zoneLineMat);
@@ -952,17 +983,17 @@
 
       // Figures walking paths (2 persons)
       securityPeople = [];
-      
+
       const personConfig = [
         {
-          color: 0xe8e4d9,
+          color: 0x2e2d29,
           center: new THREE.Vector3(-2, 0, 0),
           range: 1.8,
           speed: 0.015,
           time: 0
         },
         {
-          color: 0xe8e4d9,
+          color: 0x2e2d29,
           center: new THREE.Vector3(1.5, 0, 1),
           range: 2.2,
           speed: 0.009,
@@ -972,7 +1003,7 @@
 
       personConfig.forEach((cfg) => {
         const figure = new THREE.Group();
-        
+
         // Head
         const headGeo = new THREE.SphereGeometry(0.12, 16, 16);
         const mat = new THREE.MeshBasicMaterial({ color: cfg.color });
@@ -1009,13 +1040,13 @@
 
       // Clinical Bed frame
       const frameGeo = new THREE.BoxGeometry(1.6, 0.3, 0.85);
-      const frameMat = new THREE.MeshStandardMaterial({ color: 0x141418 });
+      const frameMat = new THREE.MeshStandardMaterial({ color: 0xcccccc });
       clinicalBed = new THREE.Mesh(frameGeo, frameMat);
       clinicalBed.position.set(0, 0.3, 0);
       scenarioGroup.add(clinicalBed);
 
       const railLGeo = new THREE.BoxGeometry(1.2, 0.15, 0.02);
-      const railMat = new THREE.MeshStandardMaterial({ color: 0x1a1a20 });
+      const railMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
       const railL = new THREE.Mesh(railLGeo, railMat);
       railL.position.set(0, 0.5, 0.44);
       scenarioGroup.add(railL);
@@ -1027,15 +1058,15 @@
       // IV Medical Stand
       const ivStand = new THREE.Group();
       ivStand.position.set(-0.9, 0, -0.6);
-      
+
       const poleGeo = new THREE.CylinderGeometry(0.015, 0.015, 1.8);
-      const poleMat = new THREE.MeshStandardMaterial({ color: 0xe8e4d9 });
+      const poleMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
       const pole = new THREE.Mesh(poleGeo, poleMat);
       pole.position.y = 0.9;
       ivStand.add(pole);
 
       const boxGeo = new THREE.BoxGeometry(0.15, 0.25, 0.15);
-      const boxMat = new THREE.MeshStandardMaterial({ color: 0x1a1a20 });
+      const boxMat = new THREE.MeshStandardMaterial({ color: 0xcccccc });
       const box = new THREE.Mesh(boxGeo, boxMat);
       box.position.set(0, 1.3, 0);
       ivStand.add(box);
@@ -1048,7 +1079,7 @@
 
       const bodyGeo = new THREE.CylinderGeometry(0.14, 0.14, 0.9, 16);
       bodyGeo.rotateZ(Math.PI / 2);
-      const bodyMat = new THREE.MeshStandardMaterial({ color: 0x1e1e24 });
+      const bodyMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
       const body = new THREE.Mesh(bodyGeo, bodyMat);
       patientGroup.add(body);
 
@@ -1062,7 +1093,7 @@
       // Heart Rate Pulsing Sphere
       const pulseGeo = new THREE.SphereGeometry(0.06, 16, 16);
       const pulseMat = new THREE.MeshBasicMaterial({
-        color: 0xe8e4d9,
+        color: 0x2e2d29,
         transparent: true,
         opacity: 0.8
       });
@@ -1075,10 +1106,10 @@
       vitalTextureCanvas.width = 256;
       vitalTextureCanvas.height = 128;
       vitalTextureContext = vitalTextureCanvas.getContext('2d');
-      
+
       // Paint initial grid
-      vitalTextureContext.fillStyle = '#000000';
-      vitalTextureContext.fillRect(0,0,256,128);
+      vitalTextureContext.fillStyle = '#ffffff';
+      vitalTextureContext.fillRect(0, 0, 256, 128);
 
       const canvasTex = new THREE.CanvasTexture(vitalTextureCanvas);
       const boardGeo = new THREE.PlaneGeometry(1.2, 0.6);
@@ -1102,11 +1133,11 @@
       ctx.putImageData(imgData, 0, 0);
 
       // Clear new strip
-      ctx.fillStyle = '#000000';
+      ctx.fillStyle = '#ffffff';
       ctx.fillRect(254, 0, 2, 128);
 
       // Draw Grid line on trailing edge
-      ctx.strokeStyle = '#051515';
+      ctx.strokeStyle = '#eaeaea';
       ctx.lineWidth = 1;
       for (let y = 0; y < 128; y += 16) {
         ctx.beginPath();
@@ -1116,7 +1147,7 @@
       }
 
       // Draw ECG dot
-      ctx.strokeStyle = simulationActive ? '#c8503a' : '#e8e4d9';
+      ctx.strokeStyle = simulationActive ? '#c8503a' : '#2e2d29';
       ctx.lineWidth = 2;
       ctx.beginPath();
 
@@ -1191,10 +1222,10 @@
       meshLines.forEach((lineObj, idx) => {
         const select = Math.floor(meshColorTimer) % 6;
         if (idx === select) {
-          lineObj.mat.color.setHex(simulationActive ? 0xc8503a : 0xe8e4d9);
+          lineObj.mat.color.setHex(simulationActive ? 0xc8503a : 0x2e2d29);
           lineObj.mat.opacity = 0.4;
         } else {
-          lineObj.mat.color.setHex(0xe8e4d9);
+          lineObj.mat.color.setHex(0x2e2d29);
           lineObj.mat.opacity = 0.05;
         }
       });
@@ -1202,7 +1233,7 @@
       // Flashing nodes logic
       if (simulationActive) {
         const flash = Math.floor(time * 3) % 2 === 0;
-        const flashColor = flash ? 0xe8e4d9 : 0xc8503a;
+        const flashColor = flash ? 0x2e2d29 : 0xc8503a;
         nodesGroup.children.forEach(n => {
           n.children[0].material.color.setHex(flashColor);
           if (n.children[2]) n.children[2].color.setHex(flashColor);
@@ -1210,9 +1241,9 @@
         });
       } else {
         nodesGroup.children.forEach(n => {
-          n.children[0].material.color.setHex(0xe8e4d9);
-          if (n.children[2]) n.children[2].color.setHex(0xe8e4d9);
-          n.children[3].material.color.setHex(0xe8e4d9); // torus
+          n.children[0].material.color.setHex(0x2e2d29);
+          if (n.children[2]) n.children[2].color.setHex(0xcccccc);
+          n.children[3].material.color.setHex(0x2e2d29); // torus
         });
       }
 
@@ -1228,7 +1259,7 @@
             if (bodyMesh) bodyMesh.scale.set(1.0, breathVal, breathVal);
           }
         }
-        
+
         // Red alert pulse
         if (dangerZoneSphere) {
           if (simulationActive) {
@@ -1254,7 +1285,7 @@
         securityPeople.forEach((p) => {
           const cfg = p.config;
           cfg.time += cfg.speed;
-          
+
           // Walking along basic path coordinates
           const x = cfg.center.x + Math.sin(cfg.time) * cfg.range;
           const z = cfg.center.z + Math.cos(cfg.time * 0.5) * (cfg.range * 0.6);
@@ -1267,8 +1298,8 @@
             p.head.material.color.setHex(0xc8503a);
             p.body.material.color.setHex(0xc8503a);
           } else {
-            p.head.material.color.setHex(0xe8e4d9);
-            p.body.material.color.setHex(0xe8e4d9);
+            p.head.material.color.setHex(0x2e2d29);
+            p.body.material.color.setHex(0x2e2d29);
           }
         });
 
@@ -1290,7 +1321,7 @@
         const hrScale = 0.5 + Math.abs(Math.sin(time * (Math.PI * 2 / hrPeriod))) * 0.8;
         if (heartPulseMesh) {
           heartPulseMesh.scale.set(hrScale, hrScale, hrScale);
-          heartPulseMesh.material.color.setHex(isApnea ? 0xc8503a : 0xe8e4d9);
+          heartPulseMesh.material.color.setHex(isApnea ? 0xc8503a : 0x2e2d29);
         }
 
         // Render Waveform Canvas
@@ -1302,10 +1333,10 @@
       nodePositions.forEach((pos, idx) => {
         tempV.copy(pos);
         tempV.project(camera);
-        
+
         const x = (tempV.x * 0.5 + 0.5) * window.innerWidth;
         const y = (tempV.y * -0.5 + 0.5) * window.innerHeight;
-        
+
         const el = document.getElementById(`node-lbl-${idx}`);
         if (el) {
           el.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`;
@@ -1345,7 +1376,7 @@
 
     select.addEventListener('change', (e) => {
       const val = e.target.value;
-      
+
       // 1. Fadeout overlay
       viewWrapper.style.opacity = 0;
 
@@ -1403,11 +1434,11 @@
           simBtn.style.color = '#c8503a';
         }
       } else {
-        if (cardLeft) cardLeft.style.borderColor = 'rgba(232, 228, 217, 0.1)';
-        if (cardRight) cardRight.style.borderColor = 'rgba(232, 228, 217, 0.1)';
+        if (cardLeft) cardLeft.style.borderColor = 'rgba(46, 45, 41, 0.12)';
+        if (cardRight) cardRight.style.borderColor = 'rgba(46, 45, 41, 0.12)';
         if (simBtn) {
-          simBtn.style.borderColor = 'rgba(232, 228, 217, 0.3)';
-          simBtn.style.color = '#e8e4d9';
+          simBtn.style.borderColor = 'rgba(46, 45, 41, 0.3)';
+          simBtn.style.color = 'var(--accent)';
         }
       }
 
@@ -1423,7 +1454,7 @@
           banner.textContent = "All Vitals Normal";
           simBtn.textContent = "Simulate Alert";
           document.getElementById('status-box').textContent = "RESTING";
-          document.getElementById('status-box').style.color = "#e8e4d9";
+          document.getElementById('status-box').style.color = "var(--accent)";
         }
       } else if (activeScenario === 'security') {
         const floorTint = zonesGroup.getObjectByName("floor_tint");
@@ -1453,10 +1484,10 @@
           banner.textContent = "Security System Armed";
           simBtn.textContent = "After Hours Mode";
           document.getElementById('status-box').textContent = "OCCUPIED";
-          document.getElementById('status-box').style.color = "#e8e4d9";
+          document.getElementById('status-box').style.color = "var(--accent)";
 
-          if (floorTint) floorTint.material.color.setHex(0xe8e4d9);
-          if (boundaryLine) boundaryLine.material.color.setHex(0xe8e4d9);
+          if (floorTint) floorTint.material.color.setHex(0x2e2d29);
+          if (boundaryLine) boundaryLine.material.color.setHex(0x2e2d29);
         }
       } else if (activeScenario === 'clinical') {
         const respFill = document.getElementById('range-resp-fill');
@@ -1499,15 +1530,15 @@
           banner.textContent = "All Vitals Normal";
           simBtn.textContent = "Simulate Apnea";
           document.getElementById('status-box').textContent = "STABLE";
-          document.getElementById('status-box').style.color = "#e8e4d9";
+          document.getElementById('status-box').style.color = "var(--accent)";
 
           if (respFill) {
             respFill.style.width = '70%';
-            respFill.style.background = 'rgba(232, 228, 217, 0.3)';
+            respFill.style.background = 'rgba(46, 45, 41, 0.25)';
           }
           if (hrFill) {
             hrFill.style.width = '72%';
-            hrFill.style.background = 'rgba(232, 228, 217, 0.3)';
+            hrFill.style.background = 'rgba(46, 45, 41, 0.25)';
           }
         }
       }
@@ -1566,19 +1597,19 @@
             <div class="metric-item">
               <div class="metric-row">
                 <span class="metric-label">Fall Detection</span>
-                <span class="metric-value" style="color: rgba(232, 228, 217, 0.6)">✓ ACTIVE</span>
+                <span class="metric-value" style="color: rgba(46, 45, 41, 0.8)">✓ ACTIVE</span>
               </div>
             </div>
             <div class="metric-item">
               <div class="metric-row">
                 <span class="metric-label">Breathing Monitor</span>
-                <span class="metric-value" style="color: rgba(232, 228, 217, 0.6)">✓ ACTIVE</span>
+                <span class="metric-value" style="color: rgba(46, 45, 41, 0.8)">✓ ACTIVE</span>
               </div>
             </div>
             <div class="metric-item">
               <div class="metric-row">
                 <span class="metric-label">Night Wandering</span>
-                <span class="metric-value" style="color: rgba(232, 228, 217, 0.6)">✓ ACTIVE</span>
+                <span class="metric-value" style="color: rgba(46, 45, 41, 0.8)">✓ ACTIVE</span>
               </div>
             </div>
             <div class="metric-item">
@@ -1684,19 +1715,19 @@
                 <span class="metric-label">Respiration</span>
                 <span class="metric-value highlight" id="val-resp"><span class="num">14</span> BPM</span>
               </div>
-              <div class="range-bar"><div id="range-resp-fill" class="range-fill" style="width:70%; background: rgba(232, 228, 217, 0.3)"></div></div>
+              <div class="range-bar"><div id="range-resp-fill" class="range-fill" style="width:70%; background: rgba(46, 45, 41, 0.25)"></div></div>
             </div>
             <div class="metric-item" style="gap:0.2rem">
               <div class="metric-row">
                 <span class="metric-label">Heart Rate</span>
                 <span class="metric-value" id="val-hr-clin"><span class="num">72</span> BPM</span>
               </div>
-              <div class="range-bar"><div id="range-hr-fill" class="range-fill" style="width:72%; background: rgba(232, 228, 217, 0.3)"></div></div>
+              <div class="range-bar"><div id="range-hr-fill" class="range-fill" style="width:72%; background: rgba(46, 45, 41, 0.25)"></div></div>
             </div>
             <div class="metric-item">
               <div class="metric-row">
                 <span class="metric-label">SpO2 (Est.)</span>
-                <span class="metric-value" style="color:rgba(232,228,217,0.25)">FUTURE USE</span>
+                <span class="metric-value" style="color:rgba(46,45,41,0.35)">FUTURE USE</span>
               </div>
             </div>
           </div>
@@ -1708,19 +1739,19 @@
             <div class="metric-item">
               <div class="metric-row">
                 <span class="metric-label">Apnea Detection</span>
-                <span class="metric-value" style="color: rgba(232, 228, 217, 0.6)">✓ ENABLED</span>
+                <span class="metric-value" style="color: rgba(46, 45, 41, 0.8)">✓ ENABLED</span>
               </div>
             </div>
             <div class="metric-item">
               <div class="metric-row">
                 <span class="metric-label">Tachycardia Alert</span>
-                <span class="metric-value" style="color: rgba(232, 228, 217, 0.6)">✓ ENABLED</span>
+                <span class="metric-value" style="color: rgba(46, 45, 41, 0.8)">✓ ENABLED</span>
               </div>
             </div>
             <div class="metric-item">
               <div class="metric-row">
                 <span class="metric-label">Bradycardia Alert</span>
-                <span class="metric-value" style="color: rgba(232, 228, 217, 0.6)">✓ ENABLED</span>
+                <span class="metric-value" style="color: rgba(46, 45, 41, 0.8)">✓ ENABLED</span>
               </div>
             </div>
             <div class="metric-item">
@@ -1747,4 +1778,5 @@
 
   </script>
 </body>
+
 </html>
