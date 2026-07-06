@@ -88,9 +88,17 @@ void dsp_task(void *pvParameters)
                     out.motion_score,
                     out.br_bpm);
                     
+                // Average BR for multi-occupancy
+                int br_avg = 0;
+                if (out.br_bpm > 0 && out.br_bpm_2 > 0) {
+                    br_avg = (out.br_bpm + out.br_bpm_2) / 2;
+                } else if (out.br_bpm > 0) {
+                    br_avg = out.br_bpm;
+                }
+
                 char json[2048];
-                int offset = snprintf(json, sizeof(json), "{\"presence\":\"%s\",\"person_count\":%d,\"motion_score\":%.2f,\"br_bpm\":%d,\"rssi\":%d,\"subcarriers\":[",
-                    p[out.presence], out.person_count, out.motion_score, out.br_bpm, frame.rssi);
+                int offset = snprintf(json, sizeof(json), "{\"presence\":\"%s\",\"person_count\":%d,\"motion_score\":%.2f,\"br_bpm\":%d,\"br_bpm_2\":%d,\"br_avg\":%d,\"rssi\":%d,\"subcarriers\":[",
+                    p[out.presence], out.person_count, out.motion_score, out.br_bpm, out.br_bpm_2, br_avg, frame.rssi);
                 
                 for (int i = 0; i < 64; i++) {
                     offset += snprintf(json + offset, sizeof(json) - offset, "%.2f%s", frame.amp[i], (i == 63) ? "]}" : ",");

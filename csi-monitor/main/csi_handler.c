@@ -60,7 +60,11 @@ static void csi_callback(void *ctx, wifi_csi_info_t *info)
         }
     }
     
-    frame.rssi = info->rx_ctrl.rssi;
+    // Smoothed RSSI — 10-sample EMA removes frame-to-frame jitter
+    // α=0.1 → TC ~10 frames, prevents distance ring from jumping
+    static float rssi_smooth = -60.0f;
+    rssi_smooth = rssi_smooth * 0.9f + (float)info->rx_ctrl.rssi * 0.1f;
+    frame.rssi = (int8_t)rssi_smooth;
 
     rb_push(&frame);
 }

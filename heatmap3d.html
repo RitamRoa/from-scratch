@@ -462,9 +462,11 @@
     <!-- TOP RIGHT: Vitals -->
     <div class="card" style="top:64px;right:16px;width:220px">
       <div class="clbl">Vital Signs</div>
-      <div class="vrow">
-        <span class="vkey">Breathing</span>
-        <span class="vval" id="vit-br" style="color: rgba(46, 45, 41, 0.55);"><span class="num">--</span> BPM</span>
+      <div id="vit-br-container">
+        <div class="vrow">
+          <span class="vkey">Breathing</span>
+          <span class="vval" id="vit-br" style="color: rgba(46, 45, 41, 0.55);"><span class="num">--</span> BPM</span>
+        </div>
       </div>
       <div class="vsep-line"></div>
       <div class="vrow">
@@ -1127,7 +1129,7 @@
       ═══════════════════════════════════════════════════ */
       var domPresVal = document.getElementById('pres-val');
       var domPresPers = document.getElementById('pres-pers');
-      var domVitBr = document.getElementById('vit-br');
+      var domVitBrContainer = document.getElementById('vit-br-container');
       var domVitConf = document.getElementById('vit-conf');
       var domConfFill = document.getElementById('conf-bar-fill');
       var domBbRssi = document.getElementById('bb-rssi');
@@ -1143,6 +1145,7 @@
         var p = data.presence || 'EMPTY';
         var pc = (data.person_count !== undefined) ? data.person_count : 0;
         var bpm = data.br_bpm || 0;
+        var bpm2 = data.br_bpm_2 || 0;
         var rssi = (data.rssi !== undefined) ? data.rssi : -100;
         var ms = data.motion_score || 0;
 
@@ -1158,12 +1161,59 @@
         }
         domPresPers.innerHTML = '<span class="num">' + pc + '</span> PERSON' + (pc !== 1 ? 'S' : '') + ' DETECTED';
 
-        if (bpm > 0 && p === 'SINGLE') {
-          domVitBr.innerHTML = '<span class="num">' + bpm + '</span> BPM';
-          domVitBr.style.color = '#2e2d29';
-        } else {
-          domVitBr.innerHTML = '<span class="num">--</span> BPM';
-          domVitBr.style.color = 'rgba(46, 45, 41, 0.55)';
+        if (p === 'EMPTY') {
+          domVitBrContainer.innerHTML =
+            '<div class="vrow">' +
+              '<span class="vkey">Breathing</span>' +
+              '<span class="vval" style="color: rgba(46, 45, 41, 0.55);"><span class="num">--</span></span>' +
+            '</div>';
+        } else if (p === 'SINGLE') {
+          if (bpm > 0) {
+            domVitBrContainer.innerHTML =
+              '<div class="vrow">' +
+                '<span class="vkey">Breathing</span>' +
+                '<span class="vval" style="color: #2e2d29;"><span class="num">' + bpm + '</span> BPM</span>' +
+              '</div>';
+          } else {
+            domVitBrContainer.innerHTML =
+              '<div class="vrow">' +
+                '<span class="vkey">Breathing</span>' +
+                '<span class="vval" style="color: rgba(46, 45, 41, 0.55);"><span class="num">--</span> BPM</span>' +
+              '</div>';
+          }
+        } else if (p === 'MULTI') {
+          // Average BR for multi-occupancy
+          var brAvg = data.br_avg;
+          if (brAvg === undefined) {
+            if (bpm > 0 && bpm2 > 0) {
+              brAvg = Math.round((bpm + bpm2) / 2);
+            } else if (bpm > 0) {
+              brAvg = bpm;
+            } else {
+              brAvg = 0;
+            }
+          }
+
+          var p2Html = '';
+          if (bpm2 > 0) {
+            p2Html = '<span class="vval" style="font-size: 11px; color: rgba(46, 45, 41, 0.55);"><span class="num">' + bpm2 + '</span> BPM</span>';
+          } else {
+            p2Html = '<span class="vval" style="font-size: 10px; color: rgba(46, 45, 41, 0.4); font-weight: normal; letter-spacing: 0.05em;">DETECTING...</span>';
+          }
+
+          domVitBrContainer.innerHTML =
+            '<div class="vrow">' +
+              '<span class="vkey" style="color: #946f32;">Breathing Avg</span>' +
+              '<span class="vval" style="color: #946f32;"><span class="num">' + (brAvg > 0 ? brAvg : '--') + '</span> BPM</span>' +
+            '</div>' +
+            '<div class="vrow" style="margin-top: 5px;">' +
+              '<span class="vkey" style="font-size: 8.5px; color: rgba(46, 45, 41, 0.55);">Person 1</span>' +
+              '<span class="vval" style="font-size: 11px; color: rgba(46, 45, 41, 0.55);"><span class="num">' + (bpm > 0 ? bpm : '--') + '</span> BPM</span>' +
+            '</div>' +
+            '<div class="vrow" style="margin-top: 3px;">' +
+              '<span class="vkey" style="font-size: 8.5px; color: rgba(46, 45, 41, 0.55);">Person 2</span>' +
+              p2Html +
+            '</div>';
         }
         var conf = (p !== 'EMPTY') ? Math.min(85 + ms * 8, 99) : 0;
         domVitConf.innerHTML = '<span class="num">' + Math.round(conf) + '</span>%';
@@ -1275,7 +1325,17 @@
         var ms = phase.p === 'EMPTY' ? 0.2 + Math.random() * 0.2
           : phase.p === 'SINGLE' ? 2.0 + Math.sin(t) * 0.7
             : 4.5 + Math.sin(t * 0.7) * 0.4;
-        var br = phase.p === 'SINGLE' ? Math.round(15 + 3 * Math.sin(t * 0.04)) : 0;
+        
+        var br = 0;
+        var br2 = 0;
+        var brAvg = 0;
+        if (phase.p === 'SINGLE') {
+          br = Math.round(15 + 3 * Math.sin(t * 0.04));
+        } else if (phase.p === 'MULTI') {
+          br = Math.round(16 + 2 * Math.sin(t * 0.05));
+          br2 = (demoPhaseTimer < 30) ? 0 : Math.round(14 + 1.5 * Math.cos(t * 0.06));
+          brAvg = (br > 0 && br2 > 0) ? Math.round((br + br2) / 2) : br;
+        }
 
         var data = {
           subcarriers: subs,
@@ -1283,6 +1343,8 @@
           person_count: phase.pc,
           motion_score: Math.max(0, ms),
           br_bpm: br,
+          br_bpm_2: br2,
+          br_avg: brAvg,
           rssi: Math.max(-85, Math.min(-30, rssi))
         };
         lastData = data;

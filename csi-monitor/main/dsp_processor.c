@@ -192,12 +192,21 @@ static presence_state_t detect_presence(float ratio,
     *motion_score_out = ratio;
 
     presence_state_t detected;
-    if (ratio < 1.18f) {
+    if (ratio < 1.05f) {
         detected = PRESENCE_EMPTY;
-    } else if (ratio < 6.0f) {
-        detected = PRESENCE_SINGLE;
     } else {
-        detected = PRESENCE_MULTI;
+        detected = PRESENCE_SINGLE;
+    }
+    // Note: PRESENCE_MULTI is never set here.
+    // Person count is determined solely by dual BR peak FFT detection.
+
+    // Add hysteresis — harder to leave SINGLE than enter it
+    static int hold_frames = 0;
+    if (current == PRESENCE_SINGLE && detected == PRESENCE_EMPTY) {
+        hold_frames++;
+        if (hold_frames < 15) detected = PRESENCE_SINGLE; // hold for 15 frames (~1.5s at 10Hz)
+    } else {
+        hold_frames = 0;
     }
 
     // Confirm before switching — prevents flicker
@@ -208,7 +217,7 @@ static presence_state_t detect_presence(float ratio,
         if (confirm >= PRESENCE_CONFIRM) {
             current = detected;
             confirm = 0;
-            const char *s[] = {"EMPTY", "SINGLE", "MULTI"};
+            const char *s[] = {"EMPTY", "SINGLE"};
             ESP_LOGI(TAG, "Presence -> %s (ratio=%.2f)", s[current], ratio);
         }
     }
@@ -234,18 +243,19 @@ void dsp_processor_push(const csi_frame_t *frame)
     total_frames++;
 
     // fast_wf: every frame — tracks current activity
-    // alpha_mean=0.01 → TC ~100 frames (~1s at 100Hz)
-    // alpha_var =0.02 → variance settles in ~50 frames
+    // alpha_mean=0.02 → TC ~50 frames (~0.5s at 100Hz)
+    // alpha_var =0.04 → variance settles in ~25 frames
     for (int s = 0; s < NUM_SUBCARRIERS; s++) {
-        welford_update(&fast_wf[s], frame->amp[s], 0.01f, 0.02f);
+        welford_update(&fast_wf[s], frame->amp[s], 0.02f, 0.04f);
     }
 
     // slow_wf: every 10th frame — long-term environment baseline
-    // alpha_mean=0.005 @ 1/10 rate → effective TC ~2000 frames (~20s at 100Hz)
-    // alpha_var =0.01  @ 1/10 rate → variance TC ~1000 frames (~10s)
+    // alpha_mean=0.002 @ 1/10 rate → effective TC ~5000 frames (~50s at 100Hz)
+    // alpha_var =0.005 @ 1/10 rate → variance TC ~2000 frames (~20s)
+    // Slower recovery = room "remembers" presence longer → re-entry spike stays bigger
     if (total_frames % 10 == 0) {
         for (int s = 0; s < NUM_SUBCARRIERS; s++) {
-            welford_update(&wf[s], frame->amp[s], 0.005f, 0.01f);
+            welford_update(&wf[s], frame->amp[s], 0.002f, 0.005f);
         }
     }
 }
@@ -279,6 +289,7 @@ csi_output_t dsp_processor_get_output(void)
 
     // Ratio: how much more active fast is vs slow baseline
     float ratio = (slow_var > 0.0001f) ? (fast_var / slow_var) : 1.0f;
+    if (ratio > 20.0f) ratio = 20.0f; // hard cap — prevents explosion
 
     // ── Presence detection ───────────────────────────────────────
     float motion_score  = 0.0f;
@@ -286,13 +297,12 @@ csi_output_t dsp_processor_get_output(void)
     out.motion_score    = motion_score;
     out.presence_score  = fast_var;
 
-    // Person count
+    // Person count — default 0 or 1 from motion alone.
+    // MULTI / person_count=2 is only set below after dual BR peak is confirmed.
     if (out.presence == PRESENCE_EMPTY) {
         out.person_count = 0;
-    } else if (out.presence == PRESENCE_SINGLE) {
-        out.person_count = 1;
     } else {
-        out.person_count = 2;
+        out.person_count = 1;
     }
 
     // ── Feed fast_variance into BR buffer (~10Hz call rate) ──────
@@ -301,9 +311,10 @@ csi_output_t dsp_processor_get_output(void)
     if (br_buf_fill < BR_BUF_LEN) br_buf_fill++;
 
     // ── Motion-clear guard ───────────────────────────────────────
-    // Only attempt BR when motion has been calm for 30+ consecutive calls
+    // Only attempt BR when motion has been calm for 15+ consecutive calls
+    // Threshold raised from 1.6 → 2.5: resting motion score is 1.2–2.0
     static int motion_clear_count = 0;
-    if (motion_score > 1.6f) {
+    if (motion_score > 2.5f) {      // was 1.6
         motion_clear_count = 0;
     } else {
         if (motion_clear_count < 100) motion_clear_count++;
@@ -311,9 +322,9 @@ csi_output_t dsp_processor_get_output(void)
 
     // ── BR extraction conditions ─────────────────────────────────
     int br_ready = (out.presence == PRESENCE_SINGLE) &&
-                   (motion_score < 1.6f)             &&
+                   (motion_score < 3.0f)             &&  // was 2.5
                    (br_buf_fill >= BR_BUF_LEN)       &&
-                   (motion_clear_count > 30);
+                   (motion_clear_count > 10);            // was 15
 
     if (br_ready) {
         // Hampel filter — remove motion-spike outliers
@@ -360,6 +371,13 @@ csi_output_t dsp_processor_get_output(void)
             }
         }
         // If peak not strong enough: br_bpm stays 0 (not confident)
+    }
+
+    // ── Persist last valid BR so display never goes blank ────────
+    static int last_known_bpm = 0;
+    if (out.br_bpm > 0) last_known_bpm = out.br_bpm;
+    if (out.br_bpm == 0 && last_known_bpm > 0) {
+        out.br_bpm = last_known_bpm; // show last known until better reading
     }
 
     return out;

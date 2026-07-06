@@ -33,7 +33,7 @@ typedef struct {
 
 #define HAMPEL_THRESH    3.0f
 #define PRESENCE_CONFIRM 2
-#define WARMUP_FRAMES    150   // frames before detection starts
+#define WARMUP_FRAMES    80    // frames before detection starts
 
 void             dsp_processor_init(void);
 void             dsp_processor_push(const csi_frame_t *frame);
