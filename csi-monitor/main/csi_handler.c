@@ -44,6 +44,9 @@ static void csi_callback(void *ctx, wifi_csi_info_t *info)
 {
     if (!info || !info->buf) return;
 
+    extern bool csi_mac_filter_check(const uint8_t *mac);
+    if (!csi_mac_filter_check(info->mac)) return;
+
     int8_t *buf = info->buf;
     int num_subs = info->len / 2;
     if (num_subs > NUM_SUBCARRIERS) num_subs = NUM_SUBCARRIERS;

@@ -504,6 +504,11 @@
       </div>
       <div class="bsep"></div>
       <div class="bbi">
+        <span class="bkey">Devices</span>
+        <span class="bval" id="bb-dev" style="color:rgba(46,45,41,0.6)"><span class="num">--</span></span>
+      </div>
+      <div class="bsep"></div>
+      <div class="bbi">
         <span class="bkey">Signal</span>
         <span class="bval" id="bb-sig" style="font-family: system-ui; font-weight: 600;">---</span>
       </div>
@@ -516,6 +521,7 @@
         <span id="conn-lbl">DISCONNECTED</span>
       </div>
       <div id="conn-ip"></div>
+      <div id="conn-countdown" style="font-family:system-ui;font-size:9px;color:rgba(46,45,41,0.5);letter-spacing:0.1em;text-transform:uppercase;margin-top:3px;min-height:12px"></div>
       <div
         style="font-family: system-ui; font-size: 9px; color: rgba(46, 45, 41, 0.65); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 6px;">
         SPARS // ESP32-S3</div>
@@ -542,6 +548,19 @@
           style="font-family:system-ui; font-size:10px; font-weight: 500; letter-spacing: 0.02em; color:rgba(46, 45, 41, 0.7)">
           OUTER (4-6M) — MOTION</div>
       </div>
+
+    <!-- PRESENCE FLASH NOTIFICATION -->
+    <div id="pres-flash" style="
+      position:absolute; top:64px; right:16px;
+      background:#e8e4d9; color:#2e2d29;
+      font-family:system-ui,-apple-system,sans-serif;
+      font-size:10px; font-weight:600;
+      letter-spacing:0.15em; text-transform:uppercase;
+      padding:8px 14px;
+      opacity:0; pointer-events:none;
+      transition:opacity 0.3s ease;
+      z-index:50;
+    ">PRESENCE DETECTED</div>
     </div>
 
     <!-- BOTTOM RIGHT -->
@@ -656,10 +675,12 @@
       }
 
       var motionHist = [0, 0, 0, 0, 0];
-      var lastData = { presence: 'EMPTY', person_count: 0, motion_score: 0, br_bpm: 0, rssi: -60, subcarriers: [] };
+      var lastData = { presence: 'EMPTY', person_count: 0, motion_score: 0, br_bpm: 0, rssi: -60, subcarriers: [], clients: 0 };
       var isDemo = false, isConn = false;
       var ws = null, fallTimer = null, reconTimer = null, demoTimer = null;
       var pulseT = 0;
+      var prevPresence = 'EMPTY';   // tracks last presence for flash trigger
+      var flashTimer   = null;      // presence flash timeout handle
 
       // Demo state
       var demoTick = 0, demoPhase = 0, demoPhaseTimer = 0, demoHotSeg = 0, demoHotDir = 1;
@@ -1249,6 +1270,29 @@
         document.getElementById('mot-hist').innerHTML = motHtml;
         domBbBr.innerHTML = bpm > 0 ? '<span class="num">' + bpm + '</span> BPM' : '<span class="num">--</span>';
 
+        // Devices online counter
+        var clients = (data.clients !== undefined) ? data.clients : null;
+        var domDev = document.getElementById('bb-dev');
+        if (domDev) {
+          domDev.innerHTML = clients !== null
+            ? '<span class="num">' + clients + '</span>'
+            : '<span class="num">--</span>';
+        }
+
+        // Presence flash — only on EMPTY → OCCUPIED transition
+        if (prevPresence === 'EMPTY' && p !== 'EMPTY') {
+          var flash = document.getElementById('pres-flash');
+          if (flash) {
+            if (flashTimer) clearTimeout(flashTimer);
+            flash.style.opacity = '1';
+            flashTimer = setTimeout(function () {
+              flash.style.opacity = '0';
+              flashTimer = null;
+            }, 2300); // 300ms fade-in already done by CSS transition, hold ~2s
+          }
+        }
+        prevPresence = p;
+
         buildHeatTarget(data);
       }
 
@@ -1367,8 +1411,11 @@
          DYNAMIC IP RESOLUTION
       ═══════════════════════════════════════════════════ */
       function resolveIp() {
+        // When served directly from ESP32, hostname IS the device IP.
+        // Auto-connect without showing the IP prompt.
         var host = location.hostname;
         if (host && host !== 'localhost' && host !== '127.0.0.1' && host !== '') return host;
+        // Fallback: ?ip= query param for local dev
         var p = new URLSearchParams(location.search).get('ip');
         if (p) return p.trim();
         return null;
@@ -1418,6 +1465,8 @@
         ws.onopen = function () {
           isConn = true;
           if (fallTimer) { clearTimeout(fallTimer); fallTimer = null; }
+          var cdEl = document.getElementById('conn-countdown');
+          if (cdEl) cdEl.textContent = '';
           stopDemo();
           setConnState('live');
           if (domConnIp) domConnIp.textContent = _wsUrl;
@@ -1435,7 +1484,19 @@
       }
       function schedRecon() {
         if (reconTimer) clearTimeout(reconTimer);
-        reconTimer = setTimeout(connectWS, 3000);
+        var countdown = 3;
+        var cdEl = document.getElementById('conn-countdown');
+        function tick() {
+          if (cdEl) cdEl.textContent = 'RECONNECTING IN ' + countdown + '...';
+          if (countdown <= 0) {
+            if (cdEl) cdEl.textContent = '';
+            connectWS();
+            return;
+          }
+          countdown--;
+          reconTimer = setTimeout(tick, 1000);
+        }
+        tick();
       }
 
       /* ═══════════════════════════════════════════════════

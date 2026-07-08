@@ -188,6 +188,7 @@ static presence_state_t detect_presence(float ratio,
 {
     static presence_state_t current = PRESENCE_EMPTY;
     static int               confirm = 0;
+    static int               empty_hold = 0;  // hold SINGLE to absorb connection dropouts
 
     *motion_score_out = ratio;
 
@@ -197,28 +198,31 @@ static presence_state_t detect_presence(float ratio,
     } else {
         detected = PRESENCE_SINGLE;
     }
-    // Note: PRESENCE_MULTI is never set here.
-    // Person count is determined solely by dual BR peak FFT detection.
 
-    // Add hysteresis — harder to leave SINGLE than enter it
-    static int hold_frames = 0;
-    if (current == PRESENCE_SINGLE && detected == PRESENCE_EMPTY) {
-        hold_frames++;
-        if (hold_frames < 15) detected = PRESENCE_SINGLE; // hold for 15 frames (~1.5s at 10Hz)
-    } else {
-        hold_frames = 0;
-    }
-
-    // Confirm before switching — prevents flicker
     if (detected == current) {
         confirm = 0;
+        empty_hold = 0;
+    } else if (detected == PRESENCE_EMPTY && current == PRESENCE_SINGLE) {
+        // Don't flip to EMPTY immediately — hold for 20 frames (~2 seconds)
+        empty_hold++;
+        if (empty_hold < 20) {
+            detected = PRESENCE_SINGLE; // stay SINGLE during brief dropout
+        } else {
+            confirm++;
+            if (confirm >= PRESENCE_CONFIRM) {
+                current = detected;
+                confirm = 0;
+                empty_hold = 0;
+                ESP_LOGI(TAG, "Presence -> EMPTY (ratio=%.2f)", ratio);
+            }
+        }
     } else {
+        empty_hold = 0;
         confirm++;
         if (confirm >= PRESENCE_CONFIRM) {
             current = detected;
             confirm = 0;
-            const char *s[] = {"EMPTY", "SINGLE"};
-            ESP_LOGI(TAG, "Presence -> %s (ratio=%.2f)", s[current], ratio);
+            ESP_LOGI(TAG, "Presence -> SINGLE (ratio=%.2f)", ratio);
         }
     }
 

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name='viewport' content='width=device-width,initial-scale=1'>
+<meta charset='UTF-8'>
+<title>SPARS</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  background:#000;
+  color:#e8e4d9;
+  font-family:system-ui,-apple-system,sans-serif;
+  height:100vh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:0;
+}
+.logo{
+  font-size:11px;
+  letter-spacing:0.25em;
+  color:rgba(232,228,217,0.35);
+  margin-bottom:48px;
+}
+.logo span{
+  font-size:20px;
+  font-weight:700;
+  color:#e8e4d9;
+  letter-spacing:0.15em;
+  display:block;
+  margin-bottom:6px;
+}
+.dot{
+  width:8px;height:8px;
+  background:#e8e4d9;
+  border-radius:50%;
+  display:inline-block;
+  margin-right:8px;
+  animation:pulse 2s ease-in-out infinite;
+}
+@keyframes pulse{
+  0%,100%{opacity:0.3;}
+  50%{opacity:1;}
+}
+.status{
+  font-size:11px;
+  letter-spacing:0.2em;
+  color:#e8e4d9;
+  display:flex;
+  align-items:center;
+  margin-bottom:12px;
+}
+.sub{
+  font-size:10px;
+  letter-spacing:0.12em;
+  color:rgba(232,228,217,0.3);
+  margin-bottom:48px;
+}
+.divider{
+  width:40px;
+  height:1px;
+  background:rgba(232,228,217,0.1);
+  margin:0 auto 32px;
+}
+.instruction{
+  font-size:10px;
+  letter-spacing:0.1em;
+  color:rgba(232,228,217,0.25);
+  text-align:center;
+  line-height:2;
+}
+.footer{
+  position:fixed;
+  bottom:24px;
+  font-size:9px;
+  letter-spacing:0.15em;
+  color:rgba(232,228,217,0.12);
+}
+</style>
+</head>
+<body>
+<div class='logo'>
+  <span>SPARS</span>
+  WIFI PRESENCE MONITORING
+</div>
+<div class='status'>
+  <span class='dot'></span>
+  CONNECTED
+</div>
+<div class='sub'>YOUR PRESENCE IS NOW BEING DETECTED</div>
+<div class='divider'></div>
+<div class='instruction'>
+  MOVE AROUND THE ROOM<br>
+  YOUR SIGNAL IS VISIBLE ON THE MONITOR
+</div>
+<div class='footer'>WAVES SAVES LIFE</div>
+<script>
+// Keep connection alive with silent pings
+setInterval(()=>{
+  fetch('/ping').catch(()=>{});
+},5000);
+</script>
+</body>
+</html>
