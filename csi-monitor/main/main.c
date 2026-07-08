@@ -196,6 +196,10 @@ static esp_err_t ws_handler(httpd_req_t *req) {
   if (req->method == HTTP_GET) {
     // WebSocket handshake — register the new client fd
     int fd = httpd_req_to_sockfd(req);
+    
+    int flag = 1;
+    setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
+
     bool accepted = false;
     int total = 0;
 

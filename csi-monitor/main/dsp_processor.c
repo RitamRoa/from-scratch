@@ -6,6 +6,9 @@
 
 #define TAG "DSP"
 
+#define WELFORD_ALPHA_FAST  0.50f
+#define WELFORD_ALPHA_SLOW  0.01f
+
 // ─── WELFORD STATE PER SUBCARRIER ────────────────────────────────
 // wf[]      = slow baseline  (updates at 1/10 rate — long-term env)
 // fast_wf[] = fast activity  (updates every frame — current motion)
@@ -247,19 +250,14 @@ void dsp_processor_push(const csi_frame_t *frame)
     total_frames++;
 
     // fast_wf: every frame — tracks current activity
-    // alpha_mean=0.02 → TC ~50 frames (~0.5s at 100Hz)
-    // alpha_var =0.04 → variance settles in ~25 frames
     for (int s = 0; s < NUM_SUBCARRIERS; s++) {
-        welford_update(&fast_wf[s], frame->amp[s], 0.02f, 0.04f);
+        welford_update(&fast_wf[s], frame->amp[s], WELFORD_ALPHA_FAST, WELFORD_ALPHA_FAST);
     }
 
     // slow_wf: every 10th frame — long-term environment baseline
-    // alpha_mean=0.002 @ 1/10 rate → effective TC ~5000 frames (~50s at 100Hz)
-    // alpha_var =0.005 @ 1/10 rate → variance TC ~2000 frames (~20s)
-    // Slower recovery = room "remembers" presence longer → re-entry spike stays bigger
     if (total_frames % 10 == 0) {
         for (int s = 0; s < NUM_SUBCARRIERS; s++) {
-            welford_update(&wf[s], frame->amp[s], 0.002f, 0.005f);
+            welford_update(&wf[s], frame->amp[s], WELFORD_ALPHA_SLOW, WELFORD_ALPHA_SLOW);
         }
     }
 }
