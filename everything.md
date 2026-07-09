@@ -26,36 +26,37 @@ The firmware exposes a WebSocket endpoint and an embedded HTTP server. A standal
 │                                                                             │
 │  ┌──────────────────┐               ┌───────────────────────────────────┐   │
 │  │  WiFi Driver     │  CSI packet   │  dsp_task (FreeRTOS, 8KB stack)   │   │
-│  │  802.11n STA     │──────────────▶│                                   │   │
-│  │  LLTF enabled    │               │  ┌─────────────────────────────┐  │   │
-│  └────────┬─────────┘               │  │  csi_handler_read()         │  │   │
-│           │                         │  │  pops from ring buffer      │  │   │
-│  csi_callback() fires               │  └──────────────┬──────────────┘  │   │
-│  on every received pkt              │                 │ csi_frame_t      │   │
-│           │                         │  ┌──────────────▼──────────────┐  │   │
-│  ┌────────▼──────────────────┐      │  │  dsp_processor_push()       │  │   │
-│  │  Amplitude extraction     │      │  │  Update fast_wf + slow_wf   │  │   │
-│  │  amp[i] = √(I²+Q²)        │      │  │  per subcarrier             │  │   │
-│  │  RSSI EMA (α=0.1)         │      │  └──────────────┬──────────────┘  │   │
-│  └────────┬──────────────────┘      │                 │ every 10 frames  │   │
-│           │                         │  ┌──────────────▼──────────────┐  │   │
-│  ┌────────▼──────────────────┐      │  │  dsp_processor_get_output() │  │   │
-│  │  Ring Buffer              │      │  │  • Ratio = fast_var/slow_var│  │   │
-│  │  128 × csi_frame_t        │      │  │  • detect_presence()        │  │   │
-│  │  lock-free, Core0 writes  │      │  │  • BR FFT pipeline          │  │   │
-│  │  Core1 reads              │      │  │  • JSON serialise           │  │   │
-│  └───────────────────────────┘      │  └──────────────┬──────────────┘  │   │
-│                                     │                 │ csi_output_t     │   │
-│                                     └─────────────────│───────────────────┘  │
+│  │  802.11n SoftAP  │──────────────▶│                                   │   │
+│  │  SSID:           │               │  ┌─────────────────────────────┐  │   │
+│  │  SPARS-DEMO-NODE │               │  │  csi_handler_read()         │  │   │
+│  └────────┬─────────┘               │  │  pops from ring buffer      │  │   │
+│           │                         │  └──────────────┬──────────────┘  │   │
+│  csi_callback() fires               │                 │ csi_frame_t      │   │
+│  on every received pkt              │  ┌──────────────▼──────────────┐  │   │
+│           │                         │  │  dsp_processor_push()       │  │   │
+│  ┌────────▼──────────────────┐      │  │  Update fast_wf + slow_wf   │  │   │
+│  │  Laptop MAC Filter:       │      │  │  per subcarrier (Fast/Slow) │  │   │
+│  │  Drops LAPTOP_MAC         │      │  └──────────────┬──────────────┘  │   │
+│  │  Passes everything else   │      │                 │ every 10 frames  │   │
+│  ├───────────────────────────┤      │  ┌──────────────▼──────────────┐  │   │
+│  │  Amplitude extraction     │      │  │  dsp_processor_get_output() │  │   │
+│  │  amp[i] = √(I²+Q²)        │      │  │  • Ratio = fast_var/slow_var│  │   │
+│  │  RSSI EMA (α=0.1)         │      │  │  • detect_presence()        │  │   │
+│  └────────┬──────────────────┘      │  │  • BR FFT pipeline          │  │   │
+│           │                         │  │  • JSON serialise           │  │   │
+│  ┌────────▼──────────────────┐      │  └──────────────┬──────────────┘  │   │
+│  │  Ring Buffer              │      │                 │ csi_output_t     │   │
+│  │  128 × csi_frame_t        │      │                 │                  │   │
+│  │  lock-free, Core0 writes  │      │                 │                  │   │
+│  │  Core1 reads              │      │                 │                  │   │
+│  └───────────────────────────┘      └─────────────────│───────────────────┘   │
 │                                                       │                      │
 │  ┌────────────────────────────────────────────────────▼────────────────┐     │
 │  │  HTTP Server (esp_http_server)                                       │     │
-│  │  GET /     → embedded monitor.html (chunked, 4 KB slices)           │     │
-│  │  GET /ws   → WebSocket upgrade, async JSON push every 10 frames     │     │
+│  │  GET /         → Blank fallback page                                │     │
+│  │  GET /monitor  → serves heatmap3d.html (chunked, 4 KB slices)       │     │
+│  │  GET /ws       → WebSocket upgrade with TCP_NODELAY, async JSON     │     │
 │  └─────────────────────────────────────────────────────────────────────┘     │
-│                                                                             │
-│  ping_task (Core 1, 10 ms interval) ─ UDP probe to gateway                 │
-│  Keeps WiFi active and CSI packets flowing continuously                     │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     │
                             WebSocket ws://
@@ -397,21 +398,19 @@ frame.rssi = (int8_t)rssi_smooth;
 
 | Function | Core/Context | Role |
 |----------|-------------|------|
-| `app_main` | Core 0 | Entry. NVS init → WiFi → CSI init → HTTP server → spawn tasks |
-| `wifi_init` | Core 0 | STA mode, event-driven, blocks on `WIFI_CONNECTED_BIT` |
-| `wifi_event_handler` | Core 0 | Handles connect/disconnect/got-IP, sets event group bit |
-| `start_webserver` | Core 0 | Starts esp_http_server with 8KB stack, registers `/` and `/ws` |
-| `root_handler` | HTTP thread | Serves `monitor.html` in 4KB chunks to avoid stack overflow |
-| `ws_handler` | HTTP thread | Accepts WebSocket handshake; data pushed asynchronously |
-| `ws_async_send` | HTTP thread | Queued via `httpd_queue_work` — sends JSON frame to each client |
-| `send_ws_data` | Core 1 | Enumerates connected WebSocket clients, queues send for each |
+| `app_main` | Core 0 | Entry. NVS init → WiFi AP → CSI init → HTTP server → spawn dsp_task |
+| `wifi_init` | Core 0 | Configures Open SoftAP mode with SSID "SPARS-DEMO-NODE" on Channel 6 |
+| `wifi_event_handler` | Core 0 | Logs station association/disassociation events |
+| `start_webserver` | Core 0 | Starts esp_http_server with 8KB stack, registers `/`, `/monitor`, `/ws` |
+| `root_handler` | HTTP thread | Serves a blank, dark HTML fallback page to regular clients |
+| `monitor_handler` | HTTP thread | Serves `heatmap3d.html` in 4KB chunks to avoid stack overflow |
+| `ws_handler` | HTTP thread | Accepts WebSocket upgrade, applies TCP_NODELAY, registers clients |
+| `send_ws_data` | Core 1 | Thread-safely broadcasts telemetry JSON to active WebSocket descriptors |
 | `dsp_task` | Core 1 | Main DSP loop: read frame → push → every 10 frames: get_output → JSON → WS |
-| `ping_task` | Core 1 | UDP probe to gateway at 10ms interval — keeps CSI packets arriving |
 
 #### Task Configuration
 ```
 dsp_task   pinned Core 1,  priority 4,  stack 8192 bytes
-ping_task  pinned Core 1,  priority 5,  stack 4096 bytes
 ```
 
 Higher priority for ping ensures WiFi traffic (and therefore CSI data) is maintained even when DSP is busy.
@@ -432,9 +431,16 @@ Higher priority for ping ensures WiFi traffic (and therefore CSI data) is mainta
 
 `br_avg` is computed in `dsp_task`: average of `br_bpm` + `br_bpm_2` if both > 0, else just `br_bpm`.
 
-#### Self-Ping Mechanism
+#### Smart CSI Packet Filtering & Socket Optimization
 
-The `ping_task` sends a 32-byte UDP packet to the WiFi gateway every 10ms. This is not a diagnostic tool — it's architectural. WiFi CSI data is only captured on *received* packets. A mobile hotspot typically only transmits when it has data to send. Without constant outbound traffic, the AP goes silent, CSI stops, and detection halts. The self-ping generates a continuous stream of WiFi activity that keeps CSI flowing at ~100 Hz.
+1. **Inverted MAC Filtering Engine**:
+   - The ESP32 collects CSI packets from any active device. To avoid stationary laptop telemetry requests polluting the Welford DSP math variance and resetting presence output to EMPTY, the callback filters packets using a hardcoded exclusion check:
+     `static const uint8_t LAPTOP_MAC[6] = {0xe0, 0xd5, 0x5d, 0x1a, 0x53, 0x6f};`
+   - In `csi_mac_filter_check()`, incoming packets matching the laptop's MAC are instantly dropped (`return false`), while all other packets (like those from the judge's phone) are fed straight to the DSP engine.
+
+2. **TCP_NODELAY Socket Optimization**:
+   - Inside `ws_handler`, Nagle's buffering algorithm is deactivated on the WebSocket socket descriptor by setting `TCP_NODELAY` via `setsockopt()`. This ensures telemetry updates are pushed out instantly with zero buffering lag:
+     `setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));`
 
 ---
 
@@ -523,10 +529,8 @@ presMulti: EMPTY=0.15, SINGLE=1.0, MULTI=1.2
 
 | Parameter | File | Current Value | Effect of Increasing |
 |-----------|------|---------------|----------------------|
-| `fast_wf α_mean` | dsp_processor.c | 0.02 | Faster mean tracking, more noise |
-| `fast_wf α_var` | dsp_processor.c | 0.04 | Faster variance response |
-| `slow_wf α_mean` | dsp_processor.c | 0.002 | Slower baseline = longer presence memory |
-| `slow_wf α_var` | dsp_processor.c | 0.005 | Slower baseline variance |
+| `WELFORD_ALPHA_FAST` | dsp_processor.c | 0.50f | Extremely fast variance tracking, highly sensitive to immediate movement |
+| `WELFORD_ALPHA_SLOW` | dsp_processor.c | 0.01f | Baseline baseline tracking speed |
 | `EMPTY threshold` | dsp_processor.c | 1.05 | Harder to declare empty (more sensitivity) |
 | `ratio hard cap` | dsp_processor.c | 20.0 | Higher cap allows finer MULTI distinction |
 | `hold_frames` | dsp_processor.c | 15 | Longer hold before SINGLE→EMPTY |
@@ -537,7 +541,6 @@ presMulti: EMPTY=0.15, SINGLE=1.0, MULTI=1.2
 | `HAMPEL_THRESH` | dsp_processor.h | 3.0 | Higher = fewer points replaced (more outliers pass) |
 | `BR_BUF_LEN` | dsp_processor.c | 256 | Larger = better freq resolution, longer warmup |
 | `RSSI EMA α` | csi_handler.c | 0.1 | Higher = less smoothing, jumpier distance ring |
-| `PING_INTERVAL_MS` | main.c | 10 | Lower = more CSI packets (more CPU overhead) |
 | `WARMUP_FRAMES` | dsp_processor.h | 80 | More warmup = more stable initial baseline |
 
 ---
