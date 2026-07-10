@@ -21,7 +21,7 @@ static httpd_handle_t server = NULL;
 // ─── MULTI-CLIENT WEBSOCKET BROADCAST ───────────────────────────
 #define MAX_WS_CLIENTS 8
 static int ws_clients[MAX_WS_CLIENTS];
-static int ws_client_count = 0;
+int ws_client_count = 0;
 static portMUX_TYPE ws_mutex = portMUX_INITIALIZER_UNLOCKED;
 
 // ─── SMART CSI PACKET FILTERING ─────────────────────────────────
@@ -107,7 +107,7 @@ void dsp_task(void *pvParameters) {
       dsp_processor_push(&frame);
       frame_count++;
 
-      if (frame_count % 10 == 0) {
+      if (frame_count % 2 == 0) {
         csi_output_t out = dsp_processor_get_output();
 
         // Global network guard: bypass DSP mathematical inference if no

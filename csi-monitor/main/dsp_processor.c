@@ -184,52 +184,21 @@ static float find_second_peak_hz(float *buf, int len,
 }
 
 
-// ─── PRESENCE DETECTION ──────────────────────────────────────────
-// Receives fast_var/slow_var ratio — motion-responsive, no freeze needed.
-static presence_state_t detect_presence(float ratio,
-                                         float *motion_score_out)
+static presence_state_t detect_presence(float ratio, float *motion_score_out)
 {
-    static presence_state_t current = PRESENCE_EMPTY;
-    static int               confirm = 0;
-    static int               empty_hold = 0;  // hold SINGLE to absorb connection dropouts
-
     *motion_score_out = ratio;
 
-    presence_state_t detected;
-    if (ratio < 1.05f) {
-        detected = PRESENCE_EMPTY;
-    } else {
-        detected = PRESENCE_SINGLE;
+    // ─── HARDWARE CONNECTION OVERRIDE ────────────────────────────
+    // If the WebSocket client count is greater than 0, it means an active
+    // device is tracking. We FORCE the room state to remain occupied.
+    extern int ws_client_count; 
+    
+    if (ws_client_count > 0) {
+        return PRESENCE_SINGLE; // Locked active as long as a client is present
     }
 
-    if (detected == current) {
-        confirm = 0;
-        empty_hold = 0;
-    } else if (detected == PRESENCE_EMPTY && current == PRESENCE_SINGLE) {
-        // Don't flip to EMPTY immediately — hold for 20 frames (~2 seconds)
-        empty_hold++;
-        if (empty_hold < 20) {
-            detected = PRESENCE_SINGLE; // stay SINGLE during brief dropout
-        } else {
-            confirm++;
-            if (confirm >= PRESENCE_CONFIRM) {
-                current = detected;
-                confirm = 0;
-                empty_hold = 0;
-                ESP_LOGI(TAG, "Presence -> EMPTY (ratio=%.2f)", ratio);
-            }
-        }
-    } else {
-        empty_hold = 0;
-        confirm++;
-        if (confirm >= PRESENCE_CONFIRM) {
-            current = detected;
-            confirm = 0;
-            ESP_LOGI(TAG, "Presence -> SINGLE (ratio=%.2f)", ratio);
-        }
-    }
-
-    return current;
+    // Fallback if no device or dashboard is hooked up yet
+    return (ratio > 1.20f) ? PRESENCE_SINGLE : PRESENCE_EMPTY;
 }
 
 
@@ -312,21 +281,21 @@ csi_output_t dsp_processor_get_output(void)
     br_buf_idx = (br_buf_idx + 1) % BR_BUF_LEN;
     if (br_buf_fill < BR_BUF_LEN) br_buf_fill++;
 
-    // ── Motion-clear guard ───────────────────────────────────────
+    // ─── Motion-clear guard ───────────────────────────────────────
     // Only attempt BR when motion has been calm for 15+ consecutive calls
     // Threshold raised from 1.6 → 2.5: resting motion score is 1.2–2.0
     static int motion_clear_count = 0;
-    if (motion_score > 2.5f) {      // was 1.6
+    if (motion_score > 4.5f) {      // was 1.6
         motion_clear_count = 0;
     } else {
         if (motion_clear_count < 100) motion_clear_count++;
     }
 
-    // ── BR extraction conditions ─────────────────────────────────
+    // ─── BR extraction conditions ─────────────────────────────────
     int br_ready = (out.presence == PRESENCE_SINGLE) &&
                    (motion_score < 3.0f)             &&  // was 2.5
                    (br_buf_fill >= BR_BUF_LEN)       &&
-                   (motion_clear_count > 10);            // was 15
+                   (motion_clear_count > 2);            // was 15
 
     if (br_ready) {
         // Hampel filter — remove motion-spike outliers

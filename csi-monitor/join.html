@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPARS — Connected</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width:100%; height:100%; background:#000000; display:flex; align-items:center; justify-content:center; font-family:system-ui,-apple-system,sans-serif; color:#fff; user-select:none; overflow:hidden; }
+    .wrap { display:flex; flex-direction:column; align-items:center; text-align:center; padding:0 40px; }
+    .brand { font-size:24px; font-weight:700; letter-spacing:0.2em; color:#fff; }
+    .brand-sub { font-size:10px; letter-spacing:0.2em; color:rgba(255,255,255,0.3); text-transform:uppercase; margin-top:8px; }
+    .sep { width:40px; height:1px; background:rgba(255,255,255,0.1); margin:32px auto; }
+    .status-row { display:flex; align-items:center; gap:10px; justify-content:center; }
+    #dot { width:12px; height:12px; border-radius:50%; background:#fff; animation:pulse 1.8s ease-in-out infinite; flex-shrink:0; transition:background 0.4s; }
+    #dot.lost { background:#e63946; animation:none; }
+    @keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:1.0} }
+    #status-text { font-size:13px; letter-spacing:0.15em; color:#fff; text-transform:uppercase; transition:color 0.4s; }
+    #status-text.lost { color:#e63946; }
+    .detect-line { margin-top:14px; font-size:10px; letter-spacing:0.1em; color:rgba(255,255,255,0.35); text-transform:uppercase; }
+    .sep2 { width:40px; height:1px; background:rgba(255,255,255,0.06); margin:28px auto; }
+    .instr-main { font-size:11px; letter-spacing:0.1em; color:#fff; text-transform:uppercase; }
+    .instr-sub { margin-top:8px; font-size:10px; letter-spacing:0.08em; color:rgba(255,255,255,0.3); text-transform:uppercase; }
+    .footer { position:fixed; bottom:28px; left:0; width:100%; text-align:center; font-size:9px; letter-spacing:0.15em; color:rgba(255,255,255,0.15); text-transform:uppercase; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">SPARS</div>
+    <div class="brand-sub">WiFi Presence Monitoring</div>
+    <div class="sep"></div>
+    <div class="status-row">
+      <div id="dot"></div>
+      <span id="status-text">CONNECTED</span>
+    </div>
+    <div class="detect-line">Your presence is now being detected</div>
+    <div class="sep2"></div>
+    <div class="instr-main">Move around the room</div>
+    <div class="instr-sub">Your signal is visible on the monitor</div>
+  </div>
+  <div class="footer">SPARS // WAVES SAVES LIFE</div>
+  <script>
+  (function(){
+    var dot=document.getElementById("dot");
+    var txt=document.getElementById("status-text");
+    var ok=true;
+    function check(){
+      fetch("/ping",{method:"GET",cache:"no-store"})
+        .then(function(r){ if(!r.ok)throw new Error(); if(!ok){ok=true;dot.classList.remove("lost");txt.classList.remove("lost");txt.textContent="CONNECTED";} })
+        .catch(function(){ if(ok){ok=false;dot.classList.add("lost");txt.classList.add("lost");txt.textContent="SIGNAL LOST";} });
+    }
+    setInterval(check,100);
+  })();
+  </script>
+</body>
+</html>
