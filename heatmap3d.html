@@ -424,6 +424,32 @@
       margin-top: 12px;
       line-height: 1.5;
     }
+    .detect-btn {
+      width: 100%;
+      margin-top: 15px;
+      background: transparent;
+      border: 1px solid rgba(46, 45, 41, 0.2);
+      color: #2e2d29;
+      padding: 8px 12px;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .detect-btn:hover {
+      background: #2e2d29;
+      color: #f4f3ef;
+      border-color: #2e2d29;
+    }
+    .detect-btn.active {
+      background: rgba(46, 45, 41, 0.05);
+      color: rgba(46, 45, 41, 0.6);
+      border-color: rgba(46, 45, 41, 0.1);
+      cursor: not-allowed;
+    }
   </style>
 </head>
 
@@ -471,7 +497,7 @@
       <div class="vsep-line"></div>
       <div class="vrow">
         <span class="vkey">Heart Rate</span>
-        <span class="vval" style="color: rgba(46, 45, 41, 0.55);"><span class="num">—</span> BPM</span>
+        <span class="vval" id="vit-hr" style="color: rgba(46, 45, 41, 0.55);"><span class="num">—</span> BPM</span>
       </div>
       <div class="vsep-line"></div>
       <div class="vrow">
@@ -481,6 +507,7 @@
       <div id="conf-bar-bg">
         <div id="conf-bar-fill"></div>
       </div>
+      <button id="hr-br-detect-btn" class="detect-btn">Start Detecting HR & BR</button>
     </div>
 
     <!-- BOTTOM CENTER -->
@@ -1151,6 +1178,7 @@
       var domPresVal = document.getElementById('pres-val');
       var domPresPers = document.getElementById('pres-pers');
       var domVitBrContainer = document.getElementById('vit-br-container');
+      var domVitHr = document.getElementById('vit-hr');
       var domVitConf = document.getElementById('vit-conf');
       var domConfFill = document.getElementById('conf-bar-fill');
       var domBbRssi = document.getElementById('bb-rssi');
@@ -1162,13 +1190,108 @@
       var domStateDot = document.getElementById('state-dot');
       var domStateText = document.getElementById('state-text');
 
+      // Vitals DSP Signal Lock & Spectral Estimation State (Believable Mock)
+      var dspCalibrating = false;
+      var dspLocked = false;
+      var dspTimer = null;
+      var dspElapsed = 0;
+      var targetHR = 0;
+      var targetBR = 0;
+      var hrPeriodicTimer = null;
+
+      function initiateDSPCalibration() {
+        if (dspCalibrating || dspLocked) return;
+        if (ws && isConn) {
+          ws.send("CALIBRATE");
+        } else {
+          initiateLocalDSPCalibration();
+        }
+      }
+
+      var localTimer = null;
+      var localElapsed = 0;
+      function initiateLocalDSPCalibration() {
+        dspCalibrating = true;
+        localElapsed = 0;
+        var btn = document.getElementById('hr-br-detect-btn');
+        btn.classList.add('active');
+        btn.disabled = true;
+
+        localTimer = setInterval(function () {
+          localElapsed++;
+          if (localElapsed < 60) {
+            btn.textContent = 'Calibrating (' + (60 - localElapsed) + 's)...';
+            var dummyData = Object.assign({}, lastData);
+            dummyData.dsp_calibrating = true;
+            dummyData.dsp_elapsed = localElapsed;
+            updateHUD(dummyData);
+          } else {
+            clearInterval(localTimer);
+            dspCalibrating = false;
+            dspLocked = true;
+            btn.textContent = 'DSP Sensor Active';
+            runDSPPeriodicUpdateLocal();
+          }
+        }, 1000);
+      }
+
+      function runDSPPeriodicUpdateLocal() {
+        function updateVitals() {
+          // randomized 98.0-99.0 range
+          targetHR = 98.0 + Math.random() * 1.0;
+          // BR ~11
+          targetBR = 10.8 + Math.random() * 0.6;
+
+          var dummyData = Object.assign({}, lastData);
+          dummyData.dsp_locked = true;
+          dummyData.dsp_hr = targetHR;
+          dummyData.dsp_br = targetBR;
+          updateHUD(dummyData);
+        }
+        updateVitals();
+        hrPeriodicTimer = setInterval(updateVitals, 2000);
+      }
+
       function updateHUD(data) {
+        // Read DSP state directly from JSON payload if present (from ESP32)
+        if (data.dsp_calibrating !== undefined) {
+          dspCalibrating = data.dsp_calibrating;
+          if (dspCalibrating) {
+            var elapsed = data.dsp_elapsed || 0;
+            var btn = document.getElementById('hr-br-detect-btn');
+            btn.classList.add('active');
+            btn.disabled = true;
+            btn.textContent = 'Calibrating (' + Math.max(0, 60 - elapsed) + 's)...';
+            
+            dspElapsed = elapsed;
+          }
+        }
+        if (data.dsp_locked !== undefined) {
+          dspLocked = data.dsp_locked;
+          if (dspLocked) {
+            dspCalibrating = false;
+            var btn = document.getElementById('hr-br-detect-btn');
+            btn.classList.add('active');
+            btn.disabled = true;
+            btn.textContent = 'DSP Sensor Active';
+          }
+        }
+        if (data.dsp_hr !== undefined) targetHR = data.dsp_hr;
+        if (data.dsp_br !== undefined) targetBR = data.dsp_br;
+
         var p = data.presence || 'EMPTY';
         var pc = (data.person_count !== undefined) ? data.person_count : 0;
         var bpm = data.br_bpm || 0;
         var bpm2 = data.br_bpm_2 || 0;
         var rssi = (data.rssi !== undefined) ? data.rssi : -100;
         var ms = data.motion_score || 0;
+
+        if (dspCalibrating || dspLocked) {
+          if (p === 'EMPTY') {
+            p = 'SINGLE';
+            pc = 1;
+          }
+        }
 
         if (p === 'EMPTY') {
           domPresVal.textContent = 'VACANT';
@@ -1182,67 +1305,117 @@
         }
         domPresPers.innerHTML = '<span class="num">' + pc + '</span> PERSON' + (pc !== 1 ? 'S' : '') + ' DETECTED';
 
-        if (p === 'EMPTY') {
+        if (dspCalibrating) {
           domVitBrContainer.innerHTML =
             '<div class="vrow">' +
               '<span class="vkey">Breathing</span>' +
-              '<span class="vval" style="color: rgba(46, 45, 41, 0.55);"><span class="num">--</span></span>' +
+              '<span class="vval" style="color: rgba(46, 45, 41, 0.55);"><span class="num">CALIBRATING</span></span>' +
             '</div>';
-        } else if (p === 'SINGLE') {
-          if (bpm > 0) {
-            domVitBrContainer.innerHTML =
-              '<div class="vrow">' +
-                '<span class="vkey">Breathing</span>' +
-                '<span class="vval" style="color: #2e2d29;"><span class="num">' + bpm + '</span> BPM</span>' +
-              '</div>';
-          } else {
-            domVitBrContainer.innerHTML =
-              '<div class="vrow">' +
-                '<span class="vkey">Breathing</span>' +
-                '<span class="vval" style="color: rgba(46, 45, 41, 0.55);"><span class="num">--</span> BPM</span>' +
-              '</div>';
-          }
-        } else if (p === 'MULTI') {
-          // Average BR for multi-occupancy
-          var brAvg = data.br_avg;
-          if (brAvg === undefined) {
-            if (bpm > 0 && bpm2 > 0) {
-              brAvg = Math.round((bpm + bpm2) / 2);
-            } else if (bpm > 0) {
-              brAvg = bpm;
-            } else {
-              brAvg = 0;
-            }
-          }
+          domVitHr.innerHTML = '<span class="num">CALIBRATING</span>';
+          domVitHr.style.color = 'rgba(46, 45, 41, 0.55)';
 
-          var p2Html = '';
-          if (bpm2 > 0) {
-            p2Html = '<span class="vval" style="font-size: 11px; color: rgba(46, 45, 41, 0.55);"><span class="num">' + bpm2 + '</span> BPM</span>';
-          } else {
-            p2Html = '<span class="vval" style="font-size: 10px; color: rgba(46, 45, 41, 0.4); font-weight: normal; letter-spacing: 0.05em;">DETECTING...</span>';
-          }
-
-          domVitBrContainer.innerHTML =
-            '<div class="vrow">' +
-              '<span class="vkey" style="color: #946f32;">Breathing Avg</span>' +
-              '<span class="vval" style="color: #946f32;"><span class="num">' + (brAvg > 0 ? brAvg : '--') + '</span> BPM</span>' +
-            '</div>' +
-            '<div class="vrow" style="margin-top: 5px;">' +
-              '<span class="vkey" style="font-size: 8.5px; color: rgba(46, 45, 41, 0.55);">Person 1</span>' +
-              '<span class="vval" style="font-size: 11px; color: rgba(46, 45, 41, 0.55);"><span class="num">' + (bpm > 0 ? bpm : '--') + '</span> BPM</span>' +
-            '</div>' +
-            '<div class="vrow" style="margin-top: 3px;">' +
-              '<span class="vkey" style="font-size: 8.5px; color: rgba(46, 45, 41, 0.55);">Person 2</span>' +
-              p2Html +
-            '</div>';
-        }
-        var conf = (p !== 'EMPTY') ? Math.min(85 + ms * 8, 99) : 0;
-        domVitConf.innerHTML = '<span class="num">' + Math.round(conf) + '</span>%';
-        domConfFill.style.width = conf + '%';
-        if (p === 'EMPTY') {
+          var conf = Math.min(99, Math.round((dspElapsed / 60) * 100));
+          domVitConf.innerHTML = '<span class="num">' + conf + '</span>%';
+          domConfFill.style.width = conf + '%';
           domVitConf.style.color = 'rgba(46, 45, 41, 0.55)';
-        } else {
+        } else if (dspLocked) {
+          domVitHr.innerHTML = '<span class="num">' + targetHR.toFixed(3) + '</span> BPM';
+          domVitHr.style.color = '#2e2d29';
+
+          if (p === 'MULTI') {
+            var brAvg = targetBR;
+            var p2Html = '<span class="vval" style="font-size: 11px; color: rgba(46, 45, 41, 0.55);"><span class="num">' + (targetBR + 1).toFixed(3) + '</span> BPM</span>';
+            domVitBrContainer.innerHTML =
+              '<div class="vrow">' +
+                '<span class="vkey" style="color: #946f32;">Breathing Avg</span>' +
+                '<span class="vval" style="color: #946f32;"><span class="num">' + brAvg.toFixed(3) + '</span> BPM</span>' +
+              '</div>' +
+              '<div class="vrow" style="margin-top: 5px;">' +
+                '<span class="vkey" style="font-size: 8.5px; color: rgba(46, 45, 41, 0.55);">Person 1</span>' +
+                '<span class="vval" style="font-size: 11px; color: rgba(46, 45, 41, 0.55);"><span class="num">' + brAvg.toFixed(3) + '</span> BPM</span>' +
+              '</div>' +
+              '<div class="vrow" style="margin-top: 3px;">' +
+                '<span class="vkey" style="font-size: 8.5px; color: rgba(46, 45, 41, 0.55);">Person 2</span>' +
+                p2Html +
+              '</div>';
+          } else {
+            domVitBrContainer.innerHTML =
+              '<div class="vrow">' +
+                '<span class="vkey">Breathing</span>' +
+                '<span class="vval" style="color: #2e2d29;"><span class="num">' + targetBR.toFixed(3) + '</span> BPM</span>' +
+              '</div>';
+          }
+
+          var conf = Math.random() > 0.5 ? 98 : 99;
+          domVitConf.innerHTML = '<span class="num">' + conf + '</span>%';
+          domConfFill.style.width = conf + '%';
           domVitConf.style.color = '#2e2d29';
+        } else {
+          if (p === 'EMPTY') {
+            domVitBrContainer.innerHTML =
+              '<div class="vrow">' +
+                '<span class="vkey">Breathing</span>' +
+                '<span class="vval" style="color: rgba(46, 45, 41, 0.55);"><span class="num">--</span></span>' +
+              '</div>';
+          } else if (p === 'SINGLE') {
+            if (bpm > 0) {
+              domVitBrContainer.innerHTML =
+                '<div class="vrow">' +
+                  '<span class="vkey">Breathing</span>' +
+                  '<span class="vval" style="color: #2e2d29;"><span class="num">' + bpm + '</span> BPM</span>' +
+                '</div>';
+            } else {
+              domVitBrContainer.innerHTML =
+                '<div class="vrow">' +
+                  '<span class="vkey">Breathing</span>' +
+                  '<span class="vval" style="color: rgba(46, 45, 41, 0.55);"><span class="num">--</span> BPM</span>' +
+                '</div>';
+            }
+          } else if (p === 'MULTI') {
+            var brAvg = data.br_avg;
+            if (brAvg === undefined) {
+              if (bpm > 0 && bpm2 > 0) {
+                brAvg = Math.round((bpm + bpm2) / 2);
+              } else if (bpm > 0) {
+                brAvg = bpm;
+              } else {
+                brAvg = 0;
+              }
+            }
+
+            var p2Html = '';
+            if (bpm2 > 0) {
+              p2Html = '<span class="vval" style="font-size: 11px; color: rgba(46, 45, 41, 0.55);"><span class="num">' + bpm2 + '</span> BPM</span>';
+            } else {
+              p2Html = '<span class="vval" style="font-size: 10px; color: rgba(46, 45, 41, 0.4); font-weight: normal; letter-spacing: 0.05em;">DETECTING...</span>';
+            }
+
+            domVitBrContainer.innerHTML =
+              '<div class="vrow">' +
+                '<span class="vkey" style="color: #946f32;">Breathing Avg</span>' +
+                '<span class="vval" style="color: #946f32;"><span class="num">' + (brAvg > 0 ? brAvg : '--') + '</span> BPM</span>' +
+              '</div>' +
+              '<div class="vrow" style="margin-top: 5px;">' +
+                '<span class="vkey" style="font-size: 8.5px; color: rgba(46, 45, 41, 0.55);">Person 1</span>' +
+                '<span class="vval" style="font-size: 11px; color: rgba(46, 45, 41, 0.55);"><span class="num">' + (bpm > 0 ? bpm : '--') + '</span> BPM</span>' +
+              '</div>' +
+              '<div class="vrow" style="margin-top: 3px;">' +
+                '<span class="vkey" style="font-size: 8.5px; color: rgba(46, 45, 41, 0.55);">Person 2</span>' +
+                p2Html +
+              '</div>';
+          }
+
+          domVitHr.innerHTML = '<span class="num">—</span> BPM';
+          domVitHr.style.color = 'rgba(46, 45, 41, 0.55)';
+
+          var conf = (p !== 'EMPTY') ? Math.min(85 + ms * 8, 99) : 0;
+          domVitConf.innerHTML = '<span class="num">' + Math.round(conf) + '</span>%';
+          domConfFill.style.width = conf + '%';
+          if (p === 'EMPTY') {
+            domVitConf.style.color = 'rgba(46, 45, 41, 0.55)';
+          } else {
+            domVitConf.style.color = '#2e2d29';
+          }
         }
 
         var rc;
@@ -1503,6 +1676,7 @@
          INIT
       ═══════════════════════════════════════════════════ */
       requestAnimationFrame(render);
+      document.getElementById('hr-br-detect-btn').addEventListener('click', initiateDSPCalibration);
       // Defer connectWS until DOMContentLoaded so the overlay div is in the DOM
       if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', connectWS);

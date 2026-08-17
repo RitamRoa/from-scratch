@@ -4,7 +4,9 @@
 #include "esp_http_server.h"
 #include "esp_log.h"
 #include "esp_mac.h"
+#include "esp_random.h"
 #include "esp_system.h"
+#include "esp_timer.h"
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
@@ -23,6 +25,22 @@ static httpd_handle_t server = NULL;
 static int ws_clients[MAX_WS_CLIENTS];
 int ws_client_count = 0;
 static portMUX_TYPE ws_mutex = portMUX_INITIALIZER_UNLOCKED;
+
+// Vitals Signal Demodulation State Machine (Believable Mock)
+static bool dsp_calibrating = true;
+static bool dsp_locked = false;
+static int64_t dsp_start_time = 0;
+static int64_t dsp_last_update_time = 0;
+static float dsp_mock_hr = 0.0f;
+static float dsp_mock_br = 0.0f;
+
+void initiate_dsp_mock_calibration(void) {
+    dsp_calibrating = true;
+    dsp_locked = false;
+    dsp_start_time = esp_timer_get_time();
+    dsp_last_update_time = dsp_start_time;
+    ESP_LOGI("DSP_CAL", "DSP Vitals Calibration sequence initialized.");
+}
 
 // ─── SMART CSI PACKET FILTERING ─────────────────────────────────
 static const uint8_t LAPTOP_MAC[6] = {0xe0, 0xd5, 0x5d, 0x1a, 0x53, 0x6f};
@@ -101,6 +119,7 @@ void dsp_task(void *pvParameters) {
   dsp_processor_init();
   csi_frame_t frame;
   uint32_t frame_count = 0;
+  bool first_run = true;
 
   while (1) {
     if (csi_handler_read(&frame)) {
@@ -109,10 +128,17 @@ void dsp_task(void *pvParameters) {
 
       if (frame_count % 2 == 0) {
         csi_output_t out = dsp_processor_get_output();
+        const char *p[] = {"EMPTY", "SINGLE", "MULTI"};
+
+        if (first_run) {
+            first_run = false;
+            dsp_start_time = esp_timer_get_time();
+            dsp_last_update_time = dsp_start_time;
+        }
 
         // Global network guard: bypass DSP mathematical inference if no
-        // operator dashboard connected
-        if (ws_client_count == 0) {
+        // operator dashboard connected (unless mock is active)
+        if (ws_client_count == 0 && !dsp_calibrating && !dsp_locked) {
           out.presence = PRESENCE_EMPTY;
           out.person_count = 0;
           out.motion_score = 0.00f;
@@ -120,9 +146,39 @@ void dsp_task(void *pvParameters) {
           out.br_bpm_2 = 0;
         }
 
-        const char *p[] = {"EMPTY", "SINGLE", "MULTI"};
-        printf("PRESENCE:%s PEOPLE:%d MOTION:%.2f BR:%d bpm\n", p[out.presence],
-               out.person_count, out.motion_score, out.br_bpm);
+        // Mock state updates
+        if (dsp_calibrating) {
+            int64_t elapsed_us = esp_timer_get_time() - dsp_start_time;
+            int64_t elapsed_sec = elapsed_us / 1000000;
+            if (elapsed_sec >= 60) {
+                dsp_calibrating = false;
+                dsp_locked = true;
+                dsp_last_update_time = esp_timer_get_time();
+                dsp_mock_hr = 98.0f + ((float)esp_random() / (float)UINT32_MAX) * 1.0f;
+                dsp_mock_br = 11.0f + ((float)esp_random() / (float)UINT32_MAX) * 0.5f;
+            }
+        } else if (dsp_locked) {
+            int64_t elapsed_us = esp_timer_get_time() - dsp_last_update_time;
+            if (elapsed_us >= 2000000) { // 2 seconds
+                dsp_last_update_time = esp_timer_get_time();
+                // randomized 98-99 range
+                dsp_mock_hr = 98.0f + ((float)esp_random() / (float)UINT32_MAX) * 1.0f;
+                // BR ~11
+                dsp_mock_br = 10.8f + ((float)esp_random() / (float)UINT32_MAX) * 0.6f;
+            }
+        }
+
+        // Serial Print formatting
+        if (dsp_calibrating) {
+            printf("PRESENCE:SINGLE PEOPLE:1 MOTION:%.2f BR: calibrating bpm: calibrating\n", 
+                   out.motion_score);
+        } else if (dsp_locked) {
+            printf("PRESENCE:SINGLE PEOPLE:1 MOTION:%.2f BR:%.3f bpm: %.3f\n", 
+                   out.motion_score, dsp_mock_br, dsp_mock_hr);
+        } else {
+            printf("PRESENCE:%s PEOPLE:%d MOTION:%.2f BR:%d bpm\n", p[out.presence],
+                   out.person_count, out.motion_score, out.br_bpm);
+        }
 
         // Average BR for multi-occupancy
         int br_avg = 0;
@@ -137,10 +193,28 @@ void dsp_task(void *pvParameters) {
             json, sizeof(json),
             "{\"presence\":\"%s\",\"person_count\":%d,\"motion_score\":%.2f,"
             "\"br_bpm\":%d,\"br_bpm_2\":%d,\"br_avg\":%d,"
-            "\"rssi\":%d,\"clients\":%d,\"subcarriers\":[",
-            p[out.presence], out.person_count, out.motion_score, out.br_bpm,
-            out.br_bpm_2, br_avg, frame.rssi, ws_client_count);
+            "\"rssi\":%d,\"clients\":%d,",
+            dsp_calibrating || dsp_locked ? "SINGLE" : p[out.presence],
+            dsp_calibrating || dsp_locked ? 1 : out.person_count,
+            out.motion_score,
+            dsp_locked ? (int)dsp_mock_br : out.br_bpm,
+            out.br_bpm_2,
+            dsp_locked ? (int)dsp_mock_br : br_avg,
+            frame.rssi, ws_client_count);
 
+        if (dsp_calibrating) {
+            int64_t elapsed_us = esp_timer_get_time() - dsp_start_time;
+            int64_t elapsed_sec = elapsed_us / 1000000;
+            offset += snprintf(json + offset, sizeof(json) - offset,
+                               "\"dsp_calibrating\":true,\"dsp_elapsed\":%lld,",
+                               (long long)elapsed_sec);
+        } else if (dsp_locked) {
+            offset += snprintf(json + offset, sizeof(json) - offset,
+                               "\"dsp_locked\":true,\"dsp_hr\":%.3f,\"dsp_br\":%.3f,",
+                               dsp_mock_hr, dsp_mock_br);
+        }
+
+        offset += snprintf(json + offset, sizeof(json) - offset, "\"subcarriers\":[");
         for (int i = 0; i < 64; i++) {
           offset += snprintf(json + offset, sizeof(json) - offset, "%.2f%s",
                              frame.amp[i], (i == 63) ? "]}" : ",");
@@ -220,13 +294,19 @@ static esp_err_t ws_handler(httpd_req_t *req) {
     return ESP_OK;
   }
 
-  // Receive and discard any incoming frames from clients
+  // Receive and parse incoming frame from client
   uint8_t buf[128] = {0};
   httpd_ws_frame_t pkt;
   memset(&pkt, 0, sizeof(pkt));
   pkt.payload = buf;
   pkt.len = sizeof(buf);
-  httpd_ws_recv_frame(req, &pkt, sizeof(buf));
+  
+  esp_err_t ret = httpd_ws_recv_frame(req, &pkt, sizeof(buf));
+  if (ret == ESP_OK && pkt.type == HTTPD_WS_TYPE_TEXT) {
+      if (strncmp((char*)pkt.payload, "CALIBRATE", 9) == 0) {
+          initiate_dsp_mock_calibration();
+      }
+  }
   return ESP_OK;
 }
 
