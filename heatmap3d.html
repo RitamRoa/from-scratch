@@ -1219,8 +1219,8 @@
 
         localTimer = setInterval(function () {
           localElapsed++;
-          if (localElapsed < 60) {
-            btn.textContent = 'Calibrating (' + (60 - localElapsed) + 's)...';
+          if (localElapsed < 45) {
+            btn.textContent = 'Calibrating (' + (45 - localElapsed) + 's)...';
             var dummyData = Object.assign({}, lastData);
             dummyData.dsp_calibrating = true;
             dummyData.dsp_elapsed = localElapsed;
@@ -1261,7 +1261,7 @@
             var btn = document.getElementById('hr-br-detect-btn');
             btn.classList.add('active');
             btn.disabled = true;
-            btn.textContent = 'Calibrating (' + Math.max(0, 60 - elapsed) + 's)...';
+            btn.textContent = 'Calibrating (' + Math.max(0, 45 - elapsed) + 's)...';
             
             dspElapsed = elapsed;
           }
@@ -1314,7 +1314,7 @@
           domVitHr.innerHTML = '<span class="num">CALIBRATING</span>';
           domVitHr.style.color = 'rgba(46, 45, 41, 0.55)';
 
-          var conf = Math.min(99, Math.round((dspElapsed / 60) * 100));
+          var conf = Math.min(99, Math.round((dspElapsed / 45) * 100));
           domVitConf.innerHTML = '<span class="num">' + conf + '</span>%';
           domConfFill.style.width = conf + '%';
           domVitConf.style.color = 'rgba(46, 45, 41, 0.55)';

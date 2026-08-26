@@ -150,21 +150,21 @@ void dsp_task(void *pvParameters) {
         if (dsp_calibrating) {
             int64_t elapsed_us = esp_timer_get_time() - dsp_start_time;
             int64_t elapsed_sec = elapsed_us / 1000000;
-            if (elapsed_sec >= 60) {
+            if (elapsed_sec >= 45) {
                 dsp_calibrating = false;
                 dsp_locked = true;
                 dsp_last_update_time = esp_timer_get_time();
-                dsp_mock_hr = 98.0f + ((float)esp_random() / (float)UINT32_MAX) * 1.0f;
-                dsp_mock_br = 11.0f + ((float)esp_random() / (float)UINT32_MAX) * 0.5f;
+                dsp_mock_hr = 98.4f + ((float)esp_random() / (float)UINT32_MAX) * 0.25f;
+                dsp_mock_br = 10.8f + ((float)esp_random() / (float)UINT32_MAX) * 0.35f;
             }
         } else if (dsp_locked) {
             int64_t elapsed_us = esp_timer_get_time() - dsp_last_update_time;
             if (elapsed_us >= 2000000) { // 2 seconds
                 dsp_last_update_time = esp_timer_get_time();
-                // randomized 98-99 range
-                dsp_mock_hr = 98.0f + ((float)esp_random() / (float)UINT32_MAX) * 1.0f;
-                // BR ~11
-                dsp_mock_br = 10.8f + ((float)esp_random() / (float)UINT32_MAX) * 0.6f;
+                // randomized 98.4 - 98.65 range
+                dsp_mock_hr = 98.4f + ((float)esp_random() / (float)UINT32_MAX) * 0.25f;
+                // BR ~ 10.8 - 11.15 range
+                dsp_mock_br = 10.8f + ((float)esp_random() / (float)UINT32_MAX) * 0.35f;
             }
         }
 
